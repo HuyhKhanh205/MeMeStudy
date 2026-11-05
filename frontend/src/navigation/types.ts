@@ -1,13 +1,14 @@
-import type { NavigatorScreenParams } from '@react-navigation/native';
-import type { Lesson } from '../types';
-
-export type MainTabParamList = {
-  Home: undefined;
-  Review: undefined;
-  Profile: undefined;
-};
-
 export type RootStackParamList = {
-  MainTabs: NavigatorScreenParams<MainTabParamList>;
-  Lesson: { lesson: Lesson };
+  Home: undefined;
+  PracticeList: undefined;
+  Exam: { roundId: string; roundTitle?: string };
+  Result: {
+    score: number;
+    totalQuestions: number;
+    starsEarned: number;
+    timeTaken: string;
+    roundTitle?: string;
+  };
+  ParentZone: undefined;
+  Profile: undefined;
 };
