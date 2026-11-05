@@ -27,11 +27,15 @@ Run lint and typecheck before declaring any task done.
 
 This app uses **React Navigation** (not Expo Router). All source code lives in `src/`:
 
-- `src/navigation/` — navigators (`RootNavigator` stack + `MainTabs` bottom tabs) and param list types
-- `src/screens/` — screen components
-- `src/components/` — reusable UI
-- `src/services/` — backend API calls (base URL from `EXPO_PUBLIC_API_URL`)
-- `src/hooks/`, `src/types/`, `src/utils/`
+- `src/navigation/` — `RootNavigator` picks `AuthStack` / `UserTabs` / `AdminStack` by `user.role`; param list types in `types.ts`
+- `src/screens/{auth,user,admin}/` — screen components
+- `src/components/` — reusable UI (Screen, Button, TextField, Card, LoadingView, ErrorView)
+- `src/theme/` — colors, spacing, typography. Style with `StyleSheet` + theme tokens (no NativeWind)
+- `src/services/` — backend API calls via `http.ts` (axios, Bearer token, normalized `ApiError`); `mock/` is used when `EXPO_PUBLIC_USE_MOCK=true`
+- `src/store/` — Redux Toolkit store + RTK Query (`api.ts`). Screens read server data through its hooks; endpoints wrap the services above (so axios + mock still apply). Cache is reset on logout.
+- `src/components/game/` + `src/theme/game.ts` — Figma "Style A – Game hoá" UI used by Exam/Result. Illustrations and colorful icons (tab bar, stars) are Microsoft Fluent Emoji 3D PNGs (MIT) in `assets/emoji/` via `src/components/Emoji.tsx`; UI icons are Ionicons. Every new graphic must be listed in `CREDITS.md`.
+- `src/components/motion.tsx` — shared Reanimated 4 effects (Float, Swim, Sway, RiseFade, PopIn, Bounce, Pulse, usePressScale, CountUp, listEntering). Reuse these for new screens; every effect must respect `useReducedMotion()`. If web throws "useAnimatedStyle was used without ... Babel plugin", restart with `npx expo start -c`.
+- `src/hooks/` (`useAuth` + `AuthProvider`, `useCountdown`), `src/types/`, `src/utils/` (`config.ts`, `tokenStorage.ts`)
 
 ## Building with EAS
 

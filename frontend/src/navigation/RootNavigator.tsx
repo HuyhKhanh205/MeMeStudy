@@ -1,22 +1,25 @@
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import MainTabs from './MainTabs';
-import LessonScreen from '../screens/LessonScreen';
-import type { RootStackParamList } from './types';
+import LoadingView from '../components/LoadingView';
+import { useAuth } from '../hooks/useAuth';
+import AdminStack from './AdminStack';
+import AuthStack from './AuthStack';
+import UserTabs from './UserTabs';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
-
+/** Chọn nhánh điều hướng theo trạng thái đăng nhập và user.role. */
 export default function RootNavigator() {
+  const { status, user } = useAuth();
+
+  if (status === 'loading') return <LoadingView />;
+
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-        <Stack.Screen
-          name="Lesson"
-          component={LessonScreen}
-          options={({ route }) => ({ title: route.params.lesson.title })}
-        />
-      </Stack.Navigator>
+      {status !== 'authenticated' || !user ? (
+        <AuthStack />
+      ) : user.role === 'ADMIN' ? (
+        <AdminStack />
+      ) : (
+        <UserTabs />
+      )}
     </NavigationContainer>
   );
 }
