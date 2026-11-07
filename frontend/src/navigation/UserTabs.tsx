@@ -40,7 +40,11 @@ function Tabs() {
         ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Trang chủ' }} />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ title: 'Trang chủ', headerShown: false }}
+      />
       <Tab.Screen name="RoundList" component={RoundListScreen} options={{ title: 'Vòng thi' }} />
       <Tab.Screen name="History" component={HistoryScreen} options={{ title: 'Lịch sử' }} />
     </Tab.Navigator>
