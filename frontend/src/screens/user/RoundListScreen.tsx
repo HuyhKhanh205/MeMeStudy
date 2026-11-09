@@ -16,10 +16,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { XStack, YStack } from 'tamagui';
 import { CircleButton, WoodLabel } from '../../components/game';
 import Emoji from '../../components/Emoji';
 import EmojiBadge from '../../components/EmojiBadge';
 import { Animated, listEntering } from '../../components/motion';
+import { useResponsive } from '../../hooks/useResponsive';
 import type { UserStackParamList, UserTabParamList } from '../../navigation/types';
 import {
   getExamStatus,
@@ -52,6 +54,13 @@ function notifyUser(title: string, message: string) {
 
 export default function RoundListScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const { width, columns } = useResponsive();
+  const maxContainerWidth = Math.min(width, 1140);
+  const maxItemWidth =
+    columns > 1
+      ? Math.floor((maxContainerWidth - spacing.md * 2 - 12 * (columns - 1)) / columns)
+      : undefined;
+
   const [attempts, setAttempts] = useState<ExamAttempt[]>(getRuntimeAttempts());
   // Mặc định mở rộng Vòng 02 (đang diễn ra)
   const [expandedRoundIds, setExpandedRoundIds] = useState<Record<number, boolean>>({
@@ -269,7 +278,10 @@ export default function RoundListScreen({ navigation, route }: Props) {
       resizeMode="cover"
     >
       <FlatList
+        key={`rounds-grid-${columns}`}
         data={seasonRounds}
+        numColumns={columns}
+        columnWrapperStyle={columns > 1 ? styles.columnWrapper : undefined}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={[
           styles.list,
@@ -281,15 +293,15 @@ export default function RoundListScreen({ navigation, route }: Props) {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
-          <View style={styles.headerSection}>
+          <YStack gap={10} marginBottom={4}>
             {/* Thanh tiêu đề trên cùng */}
-            <View style={styles.topBar}>
-              <View style={styles.headerTitleWrap}>
+            <XStack justifyContent="space-between" alignItems="center">
+              <YStack gap={4}>
                 <WoodLabel text="Vòng thi & Bài thi" fontSize={18} />
                 <View style={styles.seasonTag}>
                   <Text style={styles.seasonTagText}>{activeSeason.name}</Text>
                 </View>
-              </View>
+              </YStack>
 
               <CircleButton
                 icon="home"
@@ -297,19 +309,19 @@ export default function RoundListScreen({ navigation, route }: Props) {
                 onPress={() => navigation.navigate('Home')}
                 tone="blue"
               />
-            </View>
+            </XStack>
 
             {/* Thẻ hướng dẫn & mẹo Cú MeMe */}
             <View style={styles.tipCard}>
               <Emoji name="owl" size={44} />
-              <View style={styles.tipContent}>
+              <YStack flex={1} gap={2}>
                 <Text style={styles.tipTitle}>Quy tắc mở khóa vòng thi:</Text>
                 <Text style={styles.tipText}>
                   Làm lần lượt từng bài: <Text style={styles.bold}>Bài 1 ➔ Bài 2 ➔ Bài 3</Text>. Hoàn thành cả 3 bài để được tính điểm vòng và nhận huy hiệu!
                 </Text>
-              </View>
+              </YStack>
             </View>
-          </View>
+          </YStack>
         }
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -327,7 +339,10 @@ export default function RoundListScreen({ navigation, route }: Props) {
           const isLocked = item.status === 'LOCKED';
 
           return (
-            <Animated.View entering={listEntering(index)}>
+            <Animated.View
+              entering={listEntering(index)}
+              style={[styles.gridItem, maxItemWidth != null && { maxWidth: maxItemWidth }]}
+            >
               <View style={[styles.roundCardBox, isLocked && styles.roundCardBoxLocked]}>
                 {/* Header của thẻ vòng thi */}
                 <Pressable
@@ -411,6 +426,16 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: spacing.md,
     gap: 12,
+    width: '100%',
+    maxWidth: 1140,
+    alignSelf: 'center',
+  },
+  columnWrapper: {
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  gridItem: {
+    flex: 1,
   },
   headerSection: {
     gap: 10,

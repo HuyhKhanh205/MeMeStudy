@@ -30,6 +30,7 @@ import Emoji from '../../components/Emoji';
 import type { EmojiName } from '../../components/emojiAssets';
 import { Float, PopIn, Pulse } from '../../components/motion';
 import { useCountdown } from '../../hooks/useCountdown';
+import { useResponsive } from '../../hooks/useResponsive';
 import type { UserStackParamList } from '../../navigation/types';
 import { mockApi } from '../../services/mock';
 import {
@@ -50,6 +51,7 @@ const LETTERS = 'ABCDEFGH';
 export default function ExamScreen({ navigation, route }: Props) {
   const { roundId, roundTitle } = route.params;
   const insets = useSafeAreaInsets();
+  const { isLandscape, isTablet } = useResponsive();
 
   // Nhận các tham số mở rộng (examId, mode)
   const routeParams = route.params as any;
@@ -226,6 +228,183 @@ export default function ExamScreen({ navigation, route }: Props) {
     setAnswers((prev) => ({ ...prev, [question.id]: choiceId }));
   };
 
+  // Bảng câu hỏi (đề, các đáp án) dùng chung cho cả dọc và ngang
+  const questionBoardNode = (
+    <Animated.View key={currentIndex} entering={FadeInRight.duration(260)}>
+      <GameBoard style={styles.board}>
+        {/* Tiêu đề & Nội dung câu */}
+        <View style={styles.questionHeader}>
+          <LinearGradient colors={gameGradients.blueCircle} style={styles.questionBadge}>
+            <Text style={styles.questionBadgeText}>{currentIndex + 1}</Text>
+          </LinearGradient>
+          <View style={styles.typePill}>
+            <Text style={styles.typePillText}>
+              {question.type === 'LISTENING'
+                ? 'NGHE'
+                : question.type === 'IMAGE'
+                  ? 'HÌNH ẢNH'
+                  : 'TRẮC NGHIỆM'}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.questionContent}>{question.content}</Text>
+
+        {/* Phần hiển thị riêng theo dạng câu hỏi: LISTENING hoặc IMAGE */}
+        {question.type === 'LISTENING' && (
+          <View style={styles.listeningCard}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={toggleAudio}
+              style={[styles.audioBtn, isPlayingAudio && styles.audioBtnPlaying]}
+            >
+              <Ionicons
+                name={isPlayingAudio ? 'pause-circle' : 'volume-high'}
+                size={28}
+                color="#ffffff"
+              />
+              <Text style={styles.audioBtnText}>
+                {isPlayingAudio ? 'Đang phát âm thanh...' : 'Bấm để nghe audio'}
+              </Text>
+            </Pressable>
+            <Text style={styles.audioMeta}>
+              {audioPlayCount > 0
+                ? `Đã nghe: ${audioPlayCount} lần (Cho phép nghe lại)`
+                : 'Bấm nút trên để nghe giọng đọc bản xứ'}
+            </Text>
+          </View>
+        )}
+
+        {question.type === 'IMAGE' && question.imageUrl && (
+          <View style={styles.imageCard}>
+            <View style={styles.imageIllustrationBox}>
+              <Emoji name={question.imageUrl as EmojiName} size={80} />
+            </View>
+            <Text style={styles.imageHint}>Quan sát hình ảnh và chọn đáp án đúng nhất</Text>
+          </View>
+        )}
+
+        {/* Danh sách các đáp án A, B, C, D */}
+        <View style={styles.answersList} accessibilityRole="radiogroup">
+          {question.choices.map((choice, i) => {
+            const isSelected = selectedChoiceId === choice.id;
+            const isDimmed = selectedChoiceId != null && !isSelected;
+
+            return (
+              <AnswerButton
+                key={choice.id}
+                kind="choice"
+                letter={LETTERS[i]}
+                label={choice.content}
+                selected={isSelected}
+                dimmed={isDimmed}
+                disabled={submitting}
+                onPress={() => handleSelectChoice(choice.id)}
+                style={styles.answerItem}
+              />
+            );
+          })}
+        </View>
+
+        {/* Chế độ ÔN TẬP: Hiện ngay giải thích đúng/sai sau khi chọn */}
+        {mode === 'practice' && currentAnswered && (
+          <View
+            style={[
+              styles.explanationBox,
+              selectedChoiceId === question.correctChoiceId
+                ? styles.explainCorrect
+                : styles.explainWrong,
+            ]}
+          >
+            <View style={styles.explainHeader}>
+              <Ionicons
+                name={
+                  selectedChoiceId === question.correctChoiceId
+                    ? 'checkmark-circle'
+                    : 'alert-circle'
+                }
+                size={18}
+                color={
+                  selectedChoiceId === question.correctChoiceId ? '#16a34a' : '#dc2626'
+                }
+              />
+              <Text
+                style={[
+                  styles.explainTitle,
+                  {
+                    color:
+                      selectedChoiceId === question.correctChoiceId
+                        ? '#16a34a'
+                        : '#dc2626',
+                  },
+                ]}
+              >
+                {selectedChoiceId === question.correctChoiceId
+                  ? 'Chính xác! (+10 điểm)'
+                  : 'Chưa đúng rồi!'}
+              </Text>
+            </View>
+            <Text style={styles.explainText}>{question.explanation}</Text>
+          </View>
+        )}
+      </GameBoard>
+    </Animated.View>
+  );
+
+  // Điều hướng Trước / Sau & Nộp bài
+  const navBarNode = (
+    <View style={styles.navBarRow}>
+      <Pressable
+        disabled={currentIndex === 0}
+        onPress={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+        style={[styles.navBtn, currentIndex === 0 && styles.navBtnDisabled]}
+      >
+        <Ionicons name="arrow-back" size={16} color="#ffffff" />
+        <Text style={styles.navBtnText}>Câu trước</Text>
+      </Pressable>
+
+      {!isLast ? (
+        <Pressable
+          onPress={() => setCurrentIndex((i) => Math.min(total - 1, i + 1))}
+          style={[styles.navBtn, styles.navBtnNext]}
+        >
+          <Text style={styles.navBtnText}>Câu sau</Text>
+          <Ionicons name="arrow-forward" size={16} color="#ffffff" />
+        </Pressable>
+      ) : (
+        <Pressable onPress={handleSubmitPress} style={[styles.navBtn, styles.navBtnSubmit]}>
+          <Ionicons name="checkmark-done" size={16} color="#ffffff" />
+          <Text style={styles.navBtnText}>Nộp bài</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+
+  // Mascot Bạch tuộc + Bong bóng động viên + Nút Trả lời / Tiếp tục / Nộp bài
+  const mascotActionNode = (
+    <View style={[styles.footerSection, isLandscape && styles.footerSectionLandscape]}>
+      <Float style={styles.mascotBox} distance={8}>
+        <Emoji name="octopus" size={isLandscape ? 104 : 96} />
+      </Float>
+
+      <PopIn key={bubbleText} style={styles.bubbleBox}>
+        <SpeechBubble text={bubbleText} />
+      </PopIn>
+
+      <GameButton
+        label={isLast ? 'Nộp bài ngay' : currentAnswered ? 'Tiếp tục' : 'Trả lời'}
+        onPress={() => {
+          if (isLast) void handleSubmitPress();
+          else setCurrentIndex((i) => Math.min(total - 1, i + 1));
+        }}
+        disabled={submitting}
+        loading={submitting}
+        pulse={!submitting && (isLast || currentAnswered)}
+        style={styles.mainActionButton}
+      />
+    </View>
+  );
+
   return (
     <OceanBackground>
       <StatusBar style="light" />
@@ -233,7 +412,13 @@ export default function ExamScreen({ navigation, route }: Props) {
         contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 6 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.page}>
+        <View
+          style={[
+            styles.page,
+            isTablet && !isLandscape && styles.pageTabletPortrait,
+            isLandscape && styles.pageLandscape,
+          ]}
+        >
           {/* Header trên: Nút quay lại + Tiêu đề vòng/bài + Thanh bước câu */}
           <View style={styles.headerRow}>
             <CircleButton
@@ -285,176 +470,23 @@ export default function ExamScreen({ navigation, route }: Props) {
             </Text>
           </LinearGradient>
 
-          {/* Bảng câu hỏi chính (GameBoard) */}
-          <Animated.View key={currentIndex} entering={FadeInRight.duration(260)}>
-            <GameBoard style={styles.board}>
-              {/* Tiêu đề & Nội dung câu */}
-              <View style={styles.questionHeader}>
-                <LinearGradient colors={gameGradients.blueCircle} style={styles.questionBadge}>
-                  <Text style={styles.questionBadgeText}>{currentIndex + 1}</Text>
-                </LinearGradient>
-                <View style={styles.typePill}>
-                  <Text style={styles.typePillText}>
-                    {question.type === 'LISTENING'
-                      ? 'NGHE'
-                      : question.type === 'IMAGE'
-                        ? 'HÌNH ẢNH'
-                        : 'TRẮC NGHIỆM'}
-                  </Text>
-                </View>
+          {isLandscape ? (
+            /* Chế độ xoay ngang: bố cục 2 cột (Trái: bảng câu hỏi + điều hướng; Phải: bạch tuộc + bong bóng + nút) */
+            <View style={styles.landscapeColumns}>
+              <View style={styles.landscapeLeftCol}>
+                {questionBoardNode}
+                {navBarNode}
               </View>
-
-              <Text style={styles.questionContent}>{question.content}</Text>
-
-              {/* Phần hiển thị riêng theo dạng câu hỏi: LISTENING hoặc IMAGE */}
-              {question.type === 'LISTENING' && (
-                <View style={styles.listeningCard}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={toggleAudio}
-                    style={[styles.audioBtn, isPlayingAudio && styles.audioBtnPlaying]}
-                  >
-                    <Ionicons
-                      name={isPlayingAudio ? 'pause-circle' : 'volume-high'}
-                      size={28}
-                      color="#ffffff"
-                    />
-                    <Text style={styles.audioBtnText}>
-                      {isPlayingAudio ? 'Đang phát âm thanh...' : 'Bấm để nghe audio'}
-                    </Text>
-                  </Pressable>
-                  <Text style={styles.audioMeta}>
-                    {audioPlayCount > 0
-                      ? `Đã nghe: ${audioPlayCount} lần (Cho phép nghe lại)`
-                      : 'Bấm nút trên để nghe giọng đọc bản xứ'}
-                  </Text>
-                </View>
-              )}
-
-              {question.type === 'IMAGE' && question.imageUrl && (
-                <View style={styles.imageCard}>
-                  <View style={styles.imageIllustrationBox}>
-                    <Emoji name={question.imageUrl as EmojiName} size={80} />
-                  </View>
-                  <Text style={styles.imageHint}>Quan sát hình ảnh và chọn đáp án đúng nhất</Text>
-                </View>
-              )}
-
-              {/* Danh sách các đáp án A, B, C, D */}
-              <View style={styles.answersList} accessibilityRole="radiogroup">
-                {question.choices.map((choice, i) => {
-                  const isSelected = selectedChoiceId === choice.id;
-                  const isDimmed = selectedChoiceId != null && !isSelected;
-
-                  return (
-                    <AnswerButton
-                      key={choice.id}
-                      kind="choice"
-                      letter={LETTERS[i]}
-                      label={choice.content}
-                      selected={isSelected}
-                      dimmed={isDimmed}
-                      disabled={submitting}
-                      onPress={() => handleSelectChoice(choice.id)}
-                      style={styles.answerItem}
-                    />
-                  );
-                })}
-              </View>
-
-              {/* Chế độ ÔN TẬP: Hiện ngay giải thích đúng/sai sau khi chọn */}
-              {mode === 'practice' && currentAnswered && (
-                <View
-                  style={[
-                    styles.explanationBox,
-                    selectedChoiceId === question.correctChoiceId
-                      ? styles.explainCorrect
-                      : styles.explainWrong,
-                  ]}
-                >
-                  <View style={styles.explainHeader}>
-                    <Ionicons
-                      name={
-                        selectedChoiceId === question.correctChoiceId
-                          ? 'checkmark-circle'
-                          : 'alert-circle'
-                      }
-                      size={18}
-                      color={
-                        selectedChoiceId === question.correctChoiceId ? '#16a34a' : '#dc2626'
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.explainTitle,
-                        {
-                          color:
-                            selectedChoiceId === question.correctChoiceId
-                              ? '#16a34a'
-                              : '#dc2626',
-                        },
-                      ]}
-                    >
-                      {selectedChoiceId === question.correctChoiceId
-                        ? 'Chính xác! (+10 điểm)'
-                        : 'Chưa đúng rồi!'}
-                    </Text>
-                  </View>
-                  <Text style={styles.explainText}>{question.explanation}</Text>
-                </View>
-              )}
-            </GameBoard>
-          </Animated.View>
-
-          {/* Điều hướng Trước / Sau & Nộp bài */}
-          <View style={styles.navBarRow}>
-            <Pressable
-              disabled={currentIndex === 0}
-              onPress={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-              style={[styles.navBtn, currentIndex === 0 && styles.navBtnDisabled]}
-            >
-              <Ionicons name="arrow-back" size={16} color="#ffffff" />
-              <Text style={styles.navBtnText}>Câu trước</Text>
-            </Pressable>
-
-            {!isLast ? (
-              <Pressable
-                onPress={() => setCurrentIndex((i) => Math.min(total - 1, i + 1))}
-                style={[styles.navBtn, styles.navBtnNext]}
-              >
-                <Text style={styles.navBtnText}>Câu sau</Text>
-                <Ionicons name="arrow-forward" size={16} color="#ffffff" />
-              </Pressable>
-            ) : (
-              <Pressable onPress={handleSubmitPress} style={[styles.navBtn, styles.navBtnSubmit]}>
-                <Ionicons name="checkmark-done" size={16} color="#ffffff" />
-                <Text style={styles.navBtnText}>Nộp bài</Text>
-              </Pressable>
-            )}
-          </View>
-
-          {/* Footer: Mascot Cú mèo + Bong bóng động viên + Nút chính */}
-          <View style={styles.footerSection}>
-            <Float style={styles.mascotBox} distance={8}>
-              <Emoji name="owl" size={96} />
-            </Float>
-
-            <PopIn key={bubbleText} style={styles.bubbleBox}>
-              <SpeechBubble text={bubbleText} />
-            </PopIn>
-
-            <GameButton
-              label={isLast ? 'Nộp bài ngay' : 'Tiếp tục'}
-              onPress={() => {
-                if (isLast) void handleSubmitPress();
-                else setCurrentIndex((i) => Math.min(total - 1, i + 1));
-              }}
-              disabled={submitting}
-              loading={submitting}
-              pulse={!submitting && (isLast || currentAnswered)}
-              style={styles.mainActionButton}
-            />
-          </View>
+              <View style={styles.landscapeRightCol}>{mascotActionNode}</View>
+            </View>
+          ) : (
+            /* Chế độ dọc: giữ nguyên bố cục 1 cột như hiện tại */
+            <>
+              {questionBoardNode}
+              {navBarNode}
+              {mascotActionNode}
+            </>
+          )}
         </View>
       </ScrollView>
     </OceanBackground>
@@ -473,6 +505,25 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: 16,
     gap: 12,
+  },
+  pageTabletPortrait: {
+    maxWidth: 640,
+  },
+  pageLandscape: {
+    maxWidth: 1080,
+  },
+  landscapeColumns: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 18,
+  },
+  landscapeLeftCol: {
+    flex: 1.4,
+    gap: 12,
+  },
+  landscapeRightCol: {
+    flex: 0.9,
+    justifyContent: 'center',
   },
   headerRow: {
     flexDirection: 'row',
@@ -707,6 +758,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginTop: 10,
+  },
+  footerSectionLandscape: {
+    marginTop: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
   },
   mascotBox: {
     width: 100,

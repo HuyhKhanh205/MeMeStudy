@@ -73,11 +73,45 @@ function ConfettiPiece({ index, top, rotate, style }: { index: number; top: numb
   return <Animated.View style={[style, animated]} />;
 }
 
+/** Lớp phủ mưa giấy Confetti thích ứng kích thước màn hình (dọc/ngang/tablet). */
+export function ConfettiOverlay() {
+  const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const topOffset = insets.top - FRAME_STATUS_BAR;
+  const yScale = height < 600 ? Math.max(0.55, height / 844) : 1;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {confetti.map(([left, top, boxW, boxH, w, h, rotate, color], i) => {
+        const scaledTop = Math.round(top * yScale) + topOffset;
+        return (
+          <ConfettiPiece
+            key={i}
+            index={i}
+            top={scaledTop}
+            rotate={rotate}
+            style={[
+              styles.confetti,
+              {
+                // Đặt theo phần trăm bề ngang để tự động thích ứng khi xoay màn hình / đổi kích thước.
+                left: pct(left + boxW / 2),
+                marginLeft: -w / 2,
+                top: scaledTop + boxH / 2 - h / 2,
+                width: w,
+                height: h,
+                backgroundColor: color,
+              },
+            ]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 /** Nền vàng nắng + đồi cỏ + confetti của màn kết quả (Figma A4). */
 export default function SunnyBackground({ children }: { children: ReactNode }) {
-  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const topOffset = insets.top - FRAME_STATUS_BAR;
   // Toạ độ Figma theo bề ngang 390 → quy đổi theo bề ngang màn hình.
   const sx = (x: number) => (x / FRAME_WIDTH) * width;
 
@@ -87,27 +121,8 @@ export default function SunnyBackground({ children }: { children: ReactNode }) {
         {/* Đồi cỏ: elip 760×420 tại x=-200 và 700×440 tại x=-40 (frame 390×844). */}
         <Ellipse width={sx(760)} height={420} left={sx(-200)} bottom={-276} color="#9BDB74" />
         <Ellipse width={sx(700)} height={440} left={sx(-40)} bottom={-336} color="#6CC24A" />
-        {confetti.map(([left, top, boxW, boxH, w, h, rotate, color], i) => (
-          <ConfettiPiece
-            key={i}
-            index={i}
-            top={top + topOffset}
-            rotate={rotate}
-            style={[
-              styles.confetti,
-              {
-                // Đặt theo tâm khung bao để giữ đúng vị trí sau khi xoay.
-                left: pct(left + boxW / 2),
-                marginLeft: -w / 2,
-                top: top + boxH / 2 - h / 2 + topOffset,
-                width: w,
-                height: h,
-                backgroundColor: color,
-              },
-            ]}
-          />
-        ))}
       </View>
+      <ConfettiOverlay />
       {children}
     </LinearGradient>
   );

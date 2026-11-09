@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
+import { YStack } from 'tamagui';
 import { colors, radius, spacing } from '../theme';
 
 interface Props {
@@ -11,34 +12,25 @@ interface Props {
 }
 
 export default function Card({ children, onPress, disabled, style }: Props) {
-  if (!onPress) {
-    return <View style={[styles.card, style]}>{children}</View>;
-  }
+  const [pressed, setPressed] = useState(false);
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
+    <YStack
+      role={onPress ? 'button' : undefined}
+      onPress={disabled ? undefined : onPress}
+      onPressIn={onPress && !disabled ? () => setPressed(true) : undefined}
+      onPressOut={onPress && !disabled ? () => setPressed(false) : undefined}
       disabled={disabled}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed, disabled && styles.disabled, style]}
+      backgroundColor={pressed && onPress ? colors.primaryLight : colors.surface}
+      borderRadius={radius.lg}
+      borderWidth={1}
+      borderColor={colors.border}
+      padding={spacing.md}
+      gap={spacing.sm}
+      opacity={disabled ? 0.6 : 1}
+      style={style as any}
     >
       {children}
-    </Pressable>
+    </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  pressed: {
-    backgroundColor: colors.primaryLight,
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-});

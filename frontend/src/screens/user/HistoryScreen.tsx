@@ -12,10 +12,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { XStack, YStack } from 'tamagui';
 import { CircleButton, WoodLabel } from '../../components/game';
 import Emoji from '../../components/Emoji';
 import EmojiBadge from '../../components/EmojiBadge';
 import { Animated, listEntering } from '../../components/motion';
+import { useResponsive } from '../../hooks/useResponsive';
 import type { UserStackParamList } from '../../navigation/types';
 import {
   getRoundRank,
@@ -49,6 +51,13 @@ interface GroupedRound {
 export default function HistoryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<UserStackParamList>>();
   const insets = useSafeAreaInsets();
+  const { width, columns } = useResponsive();
+  const maxContainerWidth = Math.min(width, 1140);
+  const maxItemWidth =
+    columns > 1
+      ? Math.floor((maxContainerWidth - spacing.md * 2 - 12 * (columns - 1)) / columns)
+      : undefined;
+
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('2026-2027');
   const [attempts, setAttempts] = useState<ExamAttempt[]>(getRuntimeAttempts());
   const [expandedRoundIds, setExpandedRoundIds] = useState<Record<number, boolean>>({
@@ -159,7 +168,10 @@ export default function HistoryScreen() {
       resizeMode="cover"
     >
       <FlatList
+        key={`history-grid-${columns}`}
         data={groupedRounds}
+        numColumns={columns}
+        columnWrapperStyle={columns > 1 ? styles.columnWrapper : undefined}
         keyExtractor={(item) => String(item.roundId)}
         contentContainerStyle={[
           styles.list,
@@ -171,9 +183,9 @@ export default function HistoryScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
-          <View style={styles.headerArea}>
+          <YStack gap={10} marginBottom={4}>
             {/* Thanh tiêu đề trên cùng */}
-            <View style={styles.topBar}>
+            <XStack justifyContent="space-between" alignItems="center">
               <WoodLabel text="Lịch sử bài thi" fontSize={18} />
               <CircleButton
                 icon="home"
@@ -181,7 +193,7 @@ export default function HistoryScreen() {
                 onPress={() => (navigation as any).navigate('Home')}
                 tone="blue"
               />
-            </View>
+            </XStack>
 
             {/* 1. Bộ lọc chọn đợt thi (Season Filter Tabs) */}
             <View style={styles.seasonTabsRow}>
@@ -263,7 +275,7 @@ export default function HistoryScreen() {
                 Danh sách vòng đã thi ({groupedRounds.length}):
               </Text>
             </View>
-          </View>
+          </YStack>
         }
         ListEmptyComponent={
           <View style={styles.emptyCard}>
@@ -285,7 +297,10 @@ export default function HistoryScreen() {
           const isExpanded = !!expandedRoundIds[item.roundId];
 
           return (
-            <Animated.View entering={listEntering(index)}>
+            <Animated.View
+              entering={listEntering(index)}
+              style={[styles.gridItem, maxItemWidth != null && { maxWidth: maxItemWidth }]}
+            >
               <View style={styles.roundCardBox}>
                 {/* Header vòng */}
                 <Pressable
@@ -395,6 +410,16 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: spacing.md,
     gap: 12,
+    width: '100%',
+    maxWidth: 1140,
+    alignSelf: 'center',
+  },
+  columnWrapper: {
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  gridItem: {
+    flex: 1,
   },
   headerArea: {
     gap: 10,

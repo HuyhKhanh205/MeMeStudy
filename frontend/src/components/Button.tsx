@@ -1,12 +1,7 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
+import { Spinner, Text, XStack } from 'tamagui';
 import { colors, radius, spacing, typography } from '../theme';
+import { Animated, usePressScale } from './motion';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -28,61 +23,51 @@ export default function Button({
   style,
 }: Props) {
   const inactive = disabled || loading;
-  const textColor = variant === 'primary' || variant === 'danger' ? colors.white : colors.primary;
+  const press = usePressScale(0.97);
+  const textColor =
+    variant === 'primary' || variant === 'danger' ? colors.white : colors.primary;
+
+  const bgByVariant: Record<Variant, string> = {
+    primary: colors.primary,
+    secondary: colors.primaryLight,
+    danger: colors.danger,
+    ghost: 'transparent',
+  };
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: inactive, busy: loading }}
-      onPress={onPress}
-      disabled={inactive}
-      style={({ pressed }) => [
-        styles.base,
-        styles[variant],
-        pressed && styles.pressed,
-        inactive && styles.disabled,
-        style,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator color={textColor} />
-      ) : (
-        <Text style={[styles.title, { color: textColor }]}>{title}</Text>
-      )}
-    </Pressable>
+    <Animated.View style={press.style}>
+      <XStack
+        role="button"
+        aria-disabled={inactive}
+        aria-busy={loading}
+        onPress={inactive ? undefined : onPress}
+        onPressIn={inactive ? undefined : press.onPressIn}
+        onPressOut={inactive ? undefined : press.onPressOut}
+        disabled={inactive}
+        minHeight={48}
+        paddingHorizontal={spacing.md}
+        borderRadius={radius.md}
+        alignItems="center"
+        justifyContent="center"
+        backgroundColor={bgByVariant[variant]}
+        borderWidth={variant === 'secondary' ? 1 : 0}
+        borderColor={variant === 'secondary' ? colors.primary : 'transparent'}
+        opacity={inactive ? 0.5 : 1}
+        style={style as any}
+      >
+        {loading ? (
+          <Spinner color={textColor} />
+        ) : (
+          <Text
+            color={textColor}
+            fontSize={16}
+            fontWeight={typography.label.fontWeight}
+            lineHeight={typography.label.lineHeight}
+          >
+            {title}
+          </Text>
+        )}
+      </XStack>
+    </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primary: {
-    backgroundColor: colors.primary,
-  },
-  secondary: {
-    backgroundColor: colors.primaryLight,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  danger: {
-    backgroundColor: colors.danger,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  pressed: {
-    opacity: 0.8,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  title: {
-    ...typography.label,
-    fontSize: 16,
-  },
-});

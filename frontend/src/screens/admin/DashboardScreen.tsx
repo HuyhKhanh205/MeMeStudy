@@ -1,9 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Text, XStack } from 'tamagui';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
-import { Animated, listEntering } from '../../components/motion';
 import EmojiBadge from '../../components/EmojiBadge';
+import { Animated, listEntering } from '../../components/motion';
 import Screen from '../../components/Screen';
 import { useAuth } from '../../hooks/useAuth';
 import type { AdminStackParamList } from '../../navigation/types';
@@ -29,29 +30,87 @@ export default function DashboardScreen({ navigation }: Props) {
   const error = queryErrorMessage(questionsQuery.error) ?? queryErrorMessage(roundsQuery.error);
 
   return (
-    <Screen scroll>
-      <Text style={styles.greeting}>Xin chào, {user?.fullName}</Text>
+    <Screen scroll contentStyle={styles.content}>
+      <Text
+        fontSize={typography.heading.fontSize}
+        fontWeight={typography.heading.fontWeight}
+        lineHeight={typography.heading.lineHeight}
+        color={colors.text}
+      >
+        Xin chào, {user?.fullName}
+      </Text>
 
       <Animated.View entering={listEntering(0)}>
-        <View style={styles.statsRow}>
+        <XStack gap={spacing.sm}>
           <Card style={styles.stat}>
             <EmojiBadge name="redQuestionMark" tone="rose" size={48} />
-            <Text style={styles.statValue}>{stats?.questions ?? '–'}</Text>
-            <Text style={styles.muted}>Câu hỏi</Text>
+            <Text
+              fontSize={typography.title.fontSize}
+              fontWeight={typography.title.fontWeight}
+              lineHeight={typography.title.lineHeight}
+              color={colors.primary}
+            >
+              {stats?.questions ?? '–'}
+            </Text>
+            <Text
+              fontSize={typography.caption.fontSize}
+              fontWeight={typography.caption.fontWeight}
+              lineHeight={typography.caption.lineHeight}
+              color={colors.textMuted}
+            >
+              Câu hỏi
+            </Text>
           </Card>
           <Card style={styles.stat}>
             <EmojiBadge name="clipboard" tone="sky" size={48} />
-            <Text style={styles.statValue}>{stats?.rounds ?? '–'}</Text>
-            <Text style={styles.muted}>Vòng thi</Text>
+            <Text
+              fontSize={typography.title.fontSize}
+              fontWeight={typography.title.fontWeight}
+              lineHeight={typography.title.lineHeight}
+              color={colors.primary}
+            >
+              {stats?.rounds ?? '–'}
+            </Text>
+            <Text
+              fontSize={typography.caption.fontSize}
+              fontWeight={typography.caption.fontWeight}
+              lineHeight={typography.caption.lineHeight}
+              color={colors.textMuted}
+            >
+              Vòng thi
+            </Text>
           </Card>
           <Card style={styles.stat}>
             <EmojiBadge name="hourglass" tone="mint" size={48} />
-            <Text style={styles.statValue}>{stats?.openRounds ?? '–'}</Text>
-            <Text style={styles.muted}>Đang mở</Text>
+            <Text
+              fontSize={typography.title.fontSize}
+              fontWeight={typography.title.fontWeight}
+              lineHeight={typography.title.lineHeight}
+              color={colors.primary}
+            >
+              {stats?.openRounds ?? '–'}
+            </Text>
+            <Text
+              fontSize={typography.caption.fontSize}
+              fontWeight={typography.caption.fontWeight}
+              lineHeight={typography.caption.lineHeight}
+              color={colors.textMuted}
+            >
+              Đang mở
+            </Text>
           </Card>
-        </View>
+        </XStack>
       </Animated.View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text
+          fontSize={typography.body.fontSize}
+          fontWeight={typography.body.fontWeight}
+          lineHeight={typography.body.lineHeight}
+          color={colors.danger}
+        >
+          {error}
+        </Text>
+      ) : null}
 
       <Animated.View entering={listEntering(1)}>
         <Button title="Quản lý câu hỏi" onPress={() => navigation.navigate('QuestionList')} />
@@ -67,28 +126,13 @@ export default function DashboardScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  greeting: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+  content: {
+    maxWidth: 860,
+    width: '100%',
+    alignSelf: 'center',
   },
   stat: {
     flex: 1,
     alignItems: 'center',
-  },
-  statValue: {
-    ...typography.title,
-    color: colors.primary,
-  },
-  muted: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  error: {
-    ...typography.body,
-    color: colors.danger,
   },
 });
