@@ -1,29 +1,31 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import {
   FlatList,
+  ImageBackground,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import Card from '../../components/Card';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CircleButton, WoodLabel } from '../../components/game';
 import Emoji from '../../components/Emoji';
 import EmojiBadge from '../../components/EmojiBadge';
-import Screen from '../../components/Screen';
 import { Animated, listEntering } from '../../components/motion';
 import type { UserStackParamList } from '../../navigation/types';
 import {
+  getRoundRank,
   getRuntimeAttempts,
   seasons,
   subscribeToStore,
   type ExamAttempt,
   type Season,
 } from '../../services/mock/data';
-import { colors, radius, spacing, typography } from '../../theme';
+import { colors, gameFonts, spacing, typography } from '../../theme';
 
 function formatDateTime(iso: string): string {
   try {
@@ -46,10 +48,18 @@ interface GroupedRound {
 
 export default function HistoryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<UserStackParamList>>();
+  const insets = useSafeAreaInsets();
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('2026-2027');
   const [attempts, setAttempts] = useState<ExamAttempt[]>(getRuntimeAttempts());
-  const [expandedRoundIds, setExpandedRoundIds] = useState<Record<number, boolean>>({});
+  const [expandedRoundIds, setExpandedRoundIds] = useState<Record<number, boolean>>({
+    1: true,
+  });
   const [refreshing, setRefreshing] = useState(false);
+
+  // Ẩn thanh header mặc định của Tab để hiển thị trọn vẹn nền trời của Home.png
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -94,31 +104,37 @@ export default function HistoryScreen() {
     }
   }
 
-  // Tính điểm vòng trung bình cho từng nhóm
+  // Tính điểm vòng = cộng từ 3 bài thi (thang điểm tối đa 300)
   for (const group of groupedRounds) {
     group.exams.sort((x, y) => x.examOrder - y.examOrder);
-    const sum = group.exams.reduce((acc, curr) => acc + curr.score, 0);
-    group.roundScore = group.exams.length ? Math.round(sum / group.exams.length) : 0;
+    group.roundScore = group.exams.reduce((acc, curr) => acc + curr.score, 0);
   }
 
   const toggleExpand = (roundId: number) => {
     setExpandedRoundIds((prev) => ({ ...prev, [roundId]: !prev[roundId] }));
   };
 
-  // Mở màn hình xem lại kết quả bài thi
+  // Mở màn hình xem lại kết quả bài thi (không chấm lại, không cho thi lại bài đã xong)
   const handleViewAttemptDetail = (attempt: ExamAttempt) => {
-    navigation.navigate('Result', {
+    (navigation.navigate as any)('Result', {
       result: {
         attemptId: attempt.id,
         roundId: attempt.roundId,
         roundTitle: attempt.roundTitle,
+        examId: attempt.examId,
+        examOrder: attempt.examOrder,
         score: attempt.score,
         correctCount: attempt.correctCount,
         totalQuestions: attempt.totalQuestions,
         submittedAt: attempt.submittedAt,
-        review: attempt.review?.map((r) => ({ questionId: r.questionId, correct: r.correct })),
+        review: attempt.review?.map((r) => ({
+          questionId: r.questionId,
+          correct: r.correct,
+          choiceId: r.choiceId,
+        })),
       },
       durationSeconds: attempt.durationSeconds,
+      fromHistory: true,
     });
   };
 
@@ -128,22 +144,45 @@ export default function HistoryScreen() {
       ? selectedSeason.totalRoundsParticipated ?? 15
       : groupedRounds.length;
 
+  // Điểm cao nhất tính theo điểm vòng (thang điểm 300)
   const highestScore =
     selectedSeason.id === '2025-2026'
       ? '295/300'
-      : seasonAttempts.length
-        ? `${Math.max(...seasonAttempts.map((a) => a.score))}/100`
-        : '0/100';
+      : groupedRounds.length
+        ? `${Math.max(...groupedRounds.map((g) => g.roundScore))}/300`
+        : '0/300';
 
   return (
-    <Screen contentStyle={styles.noPadding}>
+    <ImageBackground
+      source={require('../../../assets/background/Home.png')}
+      style={styles.container}
+      resizeMode="cover"
+    >
       <FlatList
         data={groupedRounds}
         keyExtractor={(item) => String(item.roundId)}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          {
+            paddingTop: insets.top > 0 ? insets.top + 8 : 16,
+            paddingBottom: insets.bottom > 0 ? insets.bottom + 24 : 36,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
           <View style={styles.headerArea}>
+            {/* Thanh tiêu đề trên cùng */}
+            <View style={styles.topBar}>
+              <WoodLabel text="Lịch sử bài thi" fontSize={18} />
+              <CircleButton
+                icon="home"
+                accessibilityLabel="Về trang chủ"
+                onPress={() => (navigation as any).navigate('Home')}
+                tone="blue"
+              />
+            </View>
+
             {/* 1. Bộ lọc chọn đợt thi (Season Filter Tabs) */}
             <View style={styles.seasonTabsRow}>
               {seasons.map((season) => {
@@ -214,7 +253,7 @@ export default function HistoryScreen() {
 
               {selectedSeason.status === 'ARCHIVED' && (
                 <Text style={styles.archiveHelp}>
-                  Đợt thi này đã kết thúc. Bạn có thể bấm vào từng bài để xem lại kết quả đã làm.
+                  Đợt thi này đã kết thúc. Bạn có thể bấm vào từng bài để xem lại chi tiết bài làm.
                 </Text>
               )}
             </View>
@@ -227,12 +266,19 @@ export default function HistoryScreen() {
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Emoji name="owl" size={88} />
+          <View style={styles.emptyCard}>
+            <Emoji name="owl" size={84} />
             <Text style={styles.emptyText}>Bạn chưa có bài làm nào trong đợt này.</Text>
             <Text style={styles.emptySub}>
               Hãy bắt đầu tham gia các vòng thi để tích lũy điểm và huy hiệu nhé!
             </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => (navigation as any).navigate('RoundList')}
+              style={styles.exploreBtn}
+            >
+              <Text style={styles.exploreBtnText}>Khám phá vòng thi ngay →</Text>
+            </Pressable>
           </View>
         }
         renderItem={({ item, index }) => {
@@ -240,7 +286,7 @@ export default function HistoryScreen() {
 
           return (
             <Animated.View entering={listEntering(index)}>
-              <Card style={styles.roundCard}>
+              <View style={styles.roundCardBox}>
                 {/* Header vòng */}
                 <Pressable
                   accessibilityRole="button"
@@ -248,8 +294,8 @@ export default function HistoryScreen() {
                   style={styles.roundHeaderRow}
                 >
                   <EmojiBadge
-                    name={item.roundScore >= 80 ? 'trophy' : 'memo'}
-                    tone={item.roundScore >= 80 ? 'cream' : 'mint'}
+                    name={item.exams.length === 3 && item.roundScore >= 180 ? 'trophy' : 'memo'}
+                    tone={item.exams.length === 3 && item.roundScore >= 180 ? 'cream' : 'mint'}
                     size={46}
                   />
 
@@ -258,13 +304,30 @@ export default function HistoryScreen() {
                       {item.roundTitle}
                     </Text>
                     <Text style={styles.roundSub}>
-                      {item.exams.length} bài thi đã hoàn thành · Ngày {formatDateTime(item.latestDate)}
+                      {item.exams.length}/3 bài thi · Ngày {formatDateTime(item.latestDate)}
                     </Text>
                   </View>
 
                   <View style={styles.roundScoreCol}>
                     <Text style={styles.roundScoreNumber}>{item.roundScore}</Text>
-                    <Text style={styles.roundScoreLabel}>Điểm vòng</Text>
+                    <Text style={styles.roundScoreLabel}>/300 điểm vòng</Text>
+                    {item.exams.length === 3 && (
+                      <View
+                        style={[
+                          styles.rankTag,
+                          { backgroundColor: getRoundRank(item.roundScore).color + '20' },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.rankTagText,
+                            { color: getRoundRank(item.roundScore).color },
+                          ]}
+                        >
+                          {getRoundRank(item.roundScore).label}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   <Ionicons
@@ -313,26 +376,34 @@ export default function HistoryScreen() {
                     ))}
                   </View>
                 )}
-              </Card>
+              </View>
             </Animated.View>
           );
         }}
       />
-    </Screen>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  noPadding: {
-    padding: 0,
+  container: {
+    flex: 1,
+    backgroundColor: '#5CB4F8',
+    width: '100%',
+     height:"100%"
   },
   list: {
-    padding: spacing.md,
-    gap: spacing.md,
-    paddingBottom: 40,
+    paddingHorizontal: spacing.md,
+    gap: 12,
   },
   headerArea: {
-    gap: 12,
+    gap: 10,
+    marginBottom: 4,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   seasonTabsRow: {
     flexDirection: 'row',
@@ -348,18 +419,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 16,
     backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
+    borderWidth: 2,
+    borderColor: '#bfdbfe',
+    boxShadow: '0px 2px 0px 0px #93c5fd',
   },
   seasonTabActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#2563eb',
-    boxShadow: '0px 2px 0px 0px #1d4ed8',
+    backgroundColor: '#2563eb',
+    borderColor: '#1d4ed8',
+    boxShadow: '0px 2px 0px 0px #1e40af',
   },
   seasonTabText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 13,
-    fontWeight: '700',
     color: '#334155',
   },
   seasonTabTextActive: {
@@ -377,9 +448,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
   },
   statusTagText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 10,
-    fontWeight: '700',
   },
   statusTagTextSelected: {
     color: '#1d4ed8',
@@ -390,11 +460,11 @@ const styles = StyleSheet.create({
   overviewBox: {
     backgroundColor: '#ffffff',
     borderRadius: 20,
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: '#bfdbfe',
     padding: spacing.md,
     gap: 10,
-    boxShadow: '0px 3px 0px 0px #60a5fa',
+    boxShadow: '0px 4px 0px 0px #60a5fa',
   },
   overviewTop: {
     flexDirection: 'row',
@@ -405,12 +475,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   overviewTitle: {
-    ...typography.heading,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 17,
     color: '#1d4ed8',
   },
   overviewDates: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 12,
     color: '#64748b',
   },
@@ -426,9 +496,8 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   archiveNoticeText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 11,
-    fontWeight: '700',
     color: '#64748b',
   },
   overviewStatsRow: {
@@ -449,22 +518,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#cbd5e1',
   },
   statLabel: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 11,
     color: '#64748b',
   },
   statValue: {
-    ...typography.heading,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 15,
     color: '#1e293b',
   },
   statValueHighlight: {
-    ...typography.heading,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 15,
     color: '#16a34a',
   },
   archiveHelp: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 11,
     color: '#64748b',
     fontStyle: 'italic',
@@ -473,31 +542,55 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   listSectionTitle: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 13,
-    fontWeight: '700',
-    color: '#475569',
+    color: '#ffffff',
+    textShadowColor: '#1d4ed8',
+    textShadowOffset: { width: 0, height: 1.5 },
+    textShadowRadius: 2,
   },
-  empty: {
+  emptyCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#bfdbfe',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.xl,
+    gap: 8,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    boxShadow: '0px 3px 0px 0px #60a5fa',
   },
   emptyText: {
-    ...typography.body,
-    fontWeight: '700',
-    color: colors.text,
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 15,
+    color: '#1e293b',
   },
   emptySub: {
-    ...typography.caption,
-    color: colors.textMuted,
+    fontFamily: gameFonts.bodyBold,
+    fontSize: 12,
+    color: '#64748b',
     textAlign: 'center',
-    paddingHorizontal: 20,
   },
-  roundCard: {
-    padding: spacing.md,
+  exploreBtn: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 14,
+    marginTop: 6,
+  },
+  exploreBtnText: {
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 12,
+    color: '#ffffff',
+  },
+  roundCardBox: {
+    backgroundColor: '#ffffff',
     borderRadius: 20,
+    borderWidth: 2.5,
+    borderColor: '#bfdbfe',
+    padding: spacing.md,
     gap: 8,
+    boxShadow: '0px 4px 0px 0px #60a5fa',
   },
   roundHeaderRow: {
     flexDirection: 'row',
@@ -509,12 +602,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   roundTitle: {
-    ...typography.heading,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 15,
     color: colors.text,
   },
   roundSub: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 11,
     color: colors.textMuted,
   },
@@ -523,14 +616,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   roundScoreNumber: {
-    ...typography.title,
-    fontSize: 18,
-    color: colors.primary,
+    fontFamily: gameFonts.display,
+    fontSize: 20,
+    color: '#1d4ed8',
   },
   roundScoreLabel: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 9,
     color: colors.textMuted,
+  },
+  rankTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    marginTop: 2,
+    alignItems: 'center',
+  },
+  rankTagText: {
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 9,
   },
   examsList: {
     gap: 8,
@@ -542,10 +646,9 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   examsSubTitle: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 11,
     color: '#64748b',
-    fontWeight: '600',
   },
   examRow: {
     flexDirection: 'row',
@@ -553,7 +656,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#f8fafc',
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
     padding: 10,
   },
@@ -572,9 +675,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   examOrderText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 11,
-    fontWeight: '800',
     color: '#1d4ed8',
   },
   examDetail: {
@@ -582,13 +684,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   examTitle: {
-    ...typography.body,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 13,
-    fontWeight: '700',
     color: colors.text,
   },
   examMeta: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 10,
     color: colors.textMuted,
   },
@@ -602,9 +703,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   examScoreValue: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 12,
-    fontWeight: '800',
     color: '#1d4ed8',
   },
 });

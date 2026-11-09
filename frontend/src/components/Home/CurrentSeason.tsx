@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WoodLabel } from '../game';
 import { gameFonts, spacing } from '../../theme';
 import type { ExamAttempt, Season, SeasonRound } from '../../services/mock/data';
-import { getRoundScore } from '../../services/mock/data';
+import { getRoundProgress, getRoundScore } from '../../services/mock/data';
 
 interface Props {
   season: Season;
@@ -22,7 +22,13 @@ export default function CurrentSeason({
 }: Props) {
   const handlePressRound = (round: SeasonRound) => {
     if (round.status === 'LOCKED') {
-      Alert.alert('Vòng thi chưa mở', 'Vòng này đang tạm khóa. Bạn hãy đón chờ mở vòng nhé!');
+      const title = 'Vòng này chưa mở';
+      const msg = 'Vòng thi này đang tạm khóa. Bạn hãy hoàn thành các bài thi đang mở trước nhé!';
+      if (Platform.OS === 'web') {
+        globalThis.alert?.(`${title}\n\n${msg}`);
+      } else {
+        Alert.alert(title, msg);
+      }
       return;
     }
     onSelectRound(round);
@@ -43,9 +49,10 @@ export default function CurrentSeason({
       {/* Danh sách các thẻ vòng */}
       <View style={styles.roundsList}>
         {rounds.map((round) => {
-          const isCompleted = round.status === 'COMPLETED';
-          const isInProgress = round.status === 'IN_PROGRESS';
+          const progress = getRoundProgress(round.id, attempts);
           const isLocked = round.status === 'LOCKED';
+          const isCompleted = !isLocked && (round.status === 'COMPLETED' || progress.isCompleted);
+          const isInProgress = !isLocked && !isCompleted;
           const score = isCompleted ? getRoundScore(round.id, attempts) : null;
 
           return (
@@ -89,7 +96,7 @@ export default function CurrentSeason({
                       <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
                       <Text style={styles.badgeCompletedText}>Đã hoàn thành</Text>
                       {score != null && (
-                        <Text style={styles.scoreText}>· {score}/100 đ</Text>
+                        <Text style={styles.scoreText}>· {score}/300 đ</Text>
                       )}
                     </View>
                   )}

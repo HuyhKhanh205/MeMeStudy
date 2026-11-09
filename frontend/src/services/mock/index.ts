@@ -118,11 +118,7 @@ export const mockApi = {
     }
 
     // Lấy danh sách câu hỏi cho bài thi
-    let questionsForExam = mockQuestionsData.filter((q) => q.examId === chosenExam?.id);
-    if (questionsForExam.length === 0) {
-      // Nếu bài thi chưa có câu hỏi riêng, tạo 10 câu mẫu
-      questionsForExam = mockQuestionsData.slice(0, 10);
-    }
+    const questionsForExam = this.getQuestionsForExam(chosenExam?.id || 201);
 
     const now = Date.now();
     const attemptId = nextAttemptId++;
@@ -224,7 +220,11 @@ export const mockApi = {
       totalQuestions: total,
       score,
       submittedAt: nowIso,
-      review: review.map((r) => ({ questionId: r.questionId, correct: r.correct })),
+      review: review.map((r) => ({
+        questionId: r.questionId,
+        correct: r.correct,
+        choiceId: r.choiceId,
+      })) as any,
     };
 
     return result;
@@ -256,6 +256,11 @@ export const mockApi = {
   /** Lấy danh sách câu hỏi chi tiết theo bài thi */
   getQuestionsForExam(examId: number): MockQuestionItem[] {
     const questions = mockQuestionsData.filter((q) => q.examId === examId);
-    return questions.length > 0 ? questions : mockQuestionsData.slice(0, 10);
+    if (questions.length > 0) return questions;
+    // Ánh xạ theo thứ tự bài (Bài 1 -> 201, Bài 2 -> 202, Bài 3 -> 203) để đủ 10 câu đa dạng
+    const order = examId % 10;
+    const fallbackExamId = order === 2 ? 202 : order === 3 ? 203 : 201;
+    const fallbackQuestions = mockQuestionsData.filter((q) => q.examId === fallbackExamId);
+    return fallbackQuestions.length > 0 ? fallbackQuestions : mockQuestionsData.slice(0, 10);
   },
 };

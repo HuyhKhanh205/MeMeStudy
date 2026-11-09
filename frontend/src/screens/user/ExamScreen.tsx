@@ -33,6 +33,7 @@ import { useCountdown } from '../../hooks/useCountdown';
 import type { UserStackParamList } from '../../navigation/types';
 import { mockApi } from '../../services/mock';
 import {
+  getRuntimeAttempts,
   mockExams,
   mockQuestionsData,
   mockRounds,
@@ -94,6 +95,38 @@ export default function ExamScreen({ navigation, route }: Props) {
     setIsPlayingAudio(false);
     if (audioTimerRef.current) clearTimeout(audioTimerRef.current);
   }, [currentIndex]);
+
+  // Chặn thi lại bài thi chính thức đã hoàn thành (nếu không phải chế độ ôn tập)
+  useEffect(() => {
+    if (mode !== 'exam') return;
+    const existingAttempt = getRuntimeAttempts().find(
+      (a) => a.roundId === roundId && a.examId === exam.id
+    );
+    if (existingAttempt) {
+      submittedRef.current = true;
+      Alert.alert(
+        'Bài thi đã hoàn thành',
+        'Bạn đã hoàn thành bài kiểm tra này. Hệ thống sẽ mở lại kết quả của bạn.'
+      );
+      (navigation.replace as any)('Result', {
+        result: {
+          attemptId: existingAttempt.id,
+          roundId: existingAttempt.roundId,
+          roundTitle: existingAttempt.roundTitle,
+          score: existingAttempt.score,
+          correctCount: existingAttempt.correctCount,
+          totalQuestions: existingAttempt.totalQuestions,
+          submittedAt: existingAttempt.submittedAt,
+          review: existingAttempt.review?.map((r) => ({
+            questionId: r.questionId,
+            correct: r.correct,
+          })),
+        },
+        durationSeconds: existingAttempt.durationSeconds,
+        fromHistory: true,
+      });
+    }
+  }, [exam.id, mode, navigation, roundId]);
 
   const toggleAudio = () => {
     if (isPlayingAudio) {

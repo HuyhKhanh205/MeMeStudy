@@ -125,7 +125,7 @@ export const seasons: Season[] = [
     startDate: '01/09/2026',
     endDate: '31/05/2027',
     totalRoundsParticipated: 1,
-    highestScore: 90,
+    highestScore: 270,
     description: 'Hành trình khám phá tiếng Anh lớp học hoạt hình cùng Cú MeMe!',
   },
   {
@@ -758,8 +758,8 @@ export const teacherAssignments: TeacherAssignment[] = [
     deadline: '05/11',
     isCompleted: true,
     score: 90,
-    examId: 202,
-    roundId: 2,
+    examId: 101,
+    roundId: 1,
   },
 ];
 
@@ -825,7 +825,7 @@ export function getExamStatus(
 }
 
 /**
- * Tính điểm vòng (trung bình 3 bài, thang 100).
+ * Tính điểm vòng (cộng từ 3 bài thi, tối đa 300 điểm: mỗi bài 100 điểm).
  * Trả về null nếu chưa làm đủ 3 bài.
  */
 export function getRoundScore(roundId: number, userAttempts: ExamAttempt[]): number | null {
@@ -838,8 +838,48 @@ export function getRoundScore(roundId: number, userAttempts: ExamAttempt[]): num
 
   if (!exam1Attempt || !exam2Attempt || !exam3Attempt) return null;
 
-  const avg = (exam1Attempt.score + exam2Attempt.score + exam3Attempt.score) / 3;
-  return Math.round(avg);
+  // Điểm vòng = Tổng điểm 3 bài thi (thang điểm 300)
+  return exam1Attempt.score + exam2Attempt.score + exam3Attempt.score;
+}
+
+/**
+ * Xếp hạng (Rank) điểm số cho vòng thi (thang điểm 300)
+ */
+export interface RankInfo {
+  tier: string;
+  label: string;
+  color: string;
+  badgeTone: 'cream' | 'peach' | 'sky' | 'mint';
+}
+
+export function getRoundRank(score: number): RankInfo {
+  if (score >= 270) {
+    return { tier: 'Hạng Kim Cương', label: 'Xuất sắc', color: '#8b5cf6', badgeTone: 'cream' };
+  }
+  if (score >= 240) {
+    return { tier: 'Hạng Vàng', label: 'Giỏi', color: '#eab308', badgeTone: 'peach' };
+  }
+  if (score >= 180) {
+    return { tier: 'Hạng Bạc', label: 'Khá', color: '#3b82f6', badgeTone: 'sky' };
+  }
+  return { tier: 'Hạng Đồng', label: 'Cần cố gắng', color: '#64748b', badgeTone: 'mint' };
+}
+
+/**
+ * Lấy điểm cao nhất của các vòng trong đợt thi (thang điểm 300)
+ */
+export function getSeasonHighestRoundScore(seasonId: string, userAttempts: ExamAttempt[]): number {
+  if (seasonId === '2025-2026') return 295;
+
+  const seasonRounds = mockRounds.filter((r) => r.seasonId === seasonId);
+  let maxScore = 0;
+  for (const round of seasonRounds) {
+    const score = getRoundScore(round.id, userAttempts);
+    if (score != null && score > maxScore) {
+      maxScore = score;
+    }
+  }
+  return maxScore;
 }
 
 /**
@@ -887,11 +927,18 @@ export function getRuntimeAttempts(): ExamAttempt[] {
 }
 
 export function saveRuntimeAttempt(newAttempt: ExamAttempt) {
-  // Thay thế nếu đã có hoặc thêm mới vào đầu danh sách
   const existingIdx = runtimeAttempts.findIndex(
     (a) => a.roundId === newAttempt.roundId && a.examId === newAttempt.examId
   );
+
   if (existingIdx !== -1) {
+    // Nếu bài thi chính thức đã hoàn thành, không ghi đè điểm chính thức khi làm chế độ ôn tập (practice)
+    // hoặc khi cố tình nộp lại bài đã thi xong
+    const existing = runtimeAttempts[existingIdx];
+    if (newAttempt.mode === 'practice' || existing.mode !== 'practice') {
+      notifyStore();
+      return;
+    }
     runtimeAttempts[existingIdx] = newAttempt;
   } else {
     runtimeAttempts.unshift(newAttempt);

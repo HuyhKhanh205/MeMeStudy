@@ -3,25 +3,29 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
+  ImageBackground,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import Card from '../../components/Card';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CircleButton, WoodLabel } from '../../components/game';
 import Emoji from '../../components/Emoji';
 import EmojiBadge from '../../components/EmojiBadge';
-import Screen from '../../components/Screen';
 import { Animated, listEntering } from '../../components/motion';
 import type { UserStackParamList, UserTabParamList } from '../../navigation/types';
 import {
   getExamStatus,
   getRoundProgress,
+  getRoundRank,
+  getRoundScore,
   getRuntimeAttempts,
   mockExams,
   mockRounds,
@@ -31,14 +35,23 @@ import {
   type ExamAttempt,
   type SeasonRound,
 } from '../../services/mock/data';
-import { colors, radius, spacing, typography } from '../../theme';
+import { colors, gameFonts, spacing, typography } from '../../theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<UserTabParamList, 'RoundList'>,
   NativeStackScreenProps<UserStackParamList>
 >;
 
-export default function RoundListScreen({ navigation }: Props) {
+function notifyUser(title: string, message: string) {
+  if (Platform.OS === 'web') {
+    globalThis.alert?.(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+}
+
+export default function RoundListScreen({ navigation, route }: Props) {
+  const insets = useSafeAreaInsets();
   const [attempts, setAttempts] = useState<ExamAttempt[]>(getRuntimeAttempts());
   // Mặc định mở rộng Vòng 02 (đang diễn ra)
   const [expandedRoundIds, setExpandedRoundIds] = useState<Record<number, boolean>>({
@@ -48,14 +61,26 @@ export default function RoundListScreen({ navigation }: Props) {
   });
   const [refreshing, setRefreshing] = useState(false);
 
+  // Ẩn thanh header mặc định của Tab để hiển thị trọn vẹn nền trời của Home.png
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
   useFocusEffect(
     useCallback(() => {
       setAttempts([...getRuntimeAttempts()]);
+      const focusRoundId = (route.params as any)?.focusRoundId;
+      if (focusRoundId) {
+        setExpandedRoundIds((prev) => ({
+          ...prev,
+          [focusRoundId]: true,
+        }));
+      }
       const unsub = subscribeToStore(() => {
         setAttempts([...getRuntimeAttempts()]);
       });
       return unsub;
-    }, [])
+    }, [route.params])
   );
 
   const onRefresh = async () => {
@@ -71,16 +96,19 @@ export default function RoundListScreen({ navigation }: Props) {
   const activeSeason = seasons.find((s) => s.status === 'ACTIVE') ?? seasons[0];
   const seasonRounds = mockRounds.filter((r) => r.seasonId === activeSeason.id);
 
-  // Xử lý khi bấm nút "Làm bài"
+  // Bắt đầu làm bài thi chính thức (chế độ kiểm tra)
   const handleStartExam = (round: SeasonRound, exam: Exam) => {
     if (round.status === 'LOCKED') {
-      Alert.alert('Vòng thi chưa mở', 'Vòng này hiện tại chưa mở.');
+      notifyUser('Vòng này chưa mở', 'Vòng thi này hiện tại đang tạm khóa.');
       return;
     }
 
     const status = getExamStatus(round, exam, attempts);
     if (status === 'LOCKED') {
-      Alert.alert('Chưa mở khóa', 'Hãy hoàn thành Bài trước để mở khóa.');
+      notifyUser(
+        'Chưa mở khóa',
+        `Hãy hoàn thành Bài ${exam.order - 1} trước để mở khóa Bài ${exam.order} nhé!`
+      );
       return;
     }
 
@@ -92,14 +120,24 @@ export default function RoundListScreen({ navigation }: Props) {
     });
   };
 
-  // Xem kết quả bài đã thi
+  // Ôn tập lại (chỉ khả dụng trong chế độ ôn tập cho bài đã hoàn thành)
+  const handlePracticeExam = (round: SeasonRound, exam: Exam) => {
+    (navigation.navigate as any)('Exam', {
+      roundId: round.id,
+      roundTitle: round.title,
+      examId: exam.id,
+      mode: 'practice',
+    });
+  };
+
+  // Xem kết quả bài thi đã hoàn thành
   const handleViewResult = (round: SeasonRound, exam: Exam) => {
     const attempt = attempts.find(
       (a) => a.roundId === round.id && a.examId === exam.id
     );
     if (!attempt) return;
 
-    navigation.navigate('Result', {
+    (navigation.navigate as any)('Result', {
       result: {
         attemptId: attempt.id,
         roundId: attempt.roundId,
@@ -108,7 +146,11 @@ export default function RoundListScreen({ navigation }: Props) {
         correctCount: attempt.correctCount,
         totalQuestions: attempt.totalQuestions,
         submittedAt: attempt.submittedAt,
-        review: attempt.review?.map((r) => ({ questionId: r.questionId, correct: r.correct })),
+        review: attempt.review?.map((r) => ({
+          questionId: r.questionId,
+          correct: r.correct,
+          choiceId: r.choiceId,
+        })),
       },
       durationSeconds: attempt.durationSeconds,
     });
@@ -173,15 +215,25 @@ export default function RoundListScreen({ navigation }: Props) {
         </View>
 
         {/* Nút hành động */}
-        <View style={styles.examAction}>
+        <View style={styles.examActionCol}>
           {isCompleted ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => handleViewResult(round, exam)}
-              style={styles.viewResultBtn}
-            >
-              <Text style={styles.viewResultText}>Kết quả</Text>
-            </Pressable>
+            <View style={styles.completedActionsRow}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => handleViewResult(round, exam)}
+                style={styles.viewResultBtn}
+              >
+                <Text style={styles.viewResultText}>Kết quả</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => handlePracticeExam(round, exam)}
+                style={styles.practiceBtn}
+              >
+                <Ionicons name="refresh" size={12} color="#16a34a" />
+                <Text style={styles.practiceBtnText}>Ôn lại</Text>
+              </Pressable>
+            </View>
           ) : isAvailable ? (
             <Pressable
               accessibilityRole="button"
@@ -194,11 +246,14 @@ export default function RoundListScreen({ navigation }: Props) {
             <Pressable
               accessibilityRole="button"
               onPress={() =>
-                Alert.alert('Chưa mở khóa', 'Hãy hoàn thành Bài trước để mở khóa.')
+                notifyUser(
+                  'Chưa mở khóa',
+                  `Hãy hoàn thành Bài ${exam.order - 1} trước để mở khóa Bài ${exam.order} nhé!`
+                )
               }
               style={styles.lockedBtn}
             >
-              <Ionicons name="lock-closed" size={14} color="#94a3b8" />
+              <Ionicons name="lock-closed" size={13} color="#94a3b8" />
               <Text style={styles.lockedBtnText}>Khóa</Text>
             </Pressable>
           )}
@@ -208,32 +263,58 @@ export default function RoundListScreen({ navigation }: Props) {
   };
 
   return (
-    <Screen contentStyle={styles.noPadding}>
+    <ImageBackground
+      source={require('../../../assets/background/Home.png')}
+      style={styles.container}
+      resizeMode="cover"
+    >
       <FlatList
         data={seasonRounds}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          {
+            paddingTop: insets.top > 0 ? insets.top + 8 : 16,
+            paddingBottom: insets.bottom > 0 ? insets.bottom + 24 : 36,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
-          <View style={styles.seasonBanner}>
-            <View style={styles.seasonTitleRow}>
-              <Text style={styles.seasonTitle}>{activeSeason.name}</Text>
-              <View style={styles.activePill}>
-                <Text style={styles.activePillText}>ĐANG DIỄN RA</Text>
+          <View style={styles.headerSection}>
+            {/* Thanh tiêu đề trên cùng */}
+            <View style={styles.topBar}>
+              <View style={styles.headerTitleWrap}>
+                <WoodLabel text="Vòng thi & Bài thi" fontSize={18} />
+                <View style={styles.seasonTag}>
+                  <Text style={styles.seasonTagText}>{activeSeason.name}</Text>
+                </View>
+              </View>
+
+              <CircleButton
+                icon="home"
+                accessibilityLabel="Về trang chủ"
+                onPress={() => navigation.navigate('Home')}
+                tone="blue"
+              />
+            </View>
+
+            {/* Thẻ hướng dẫn & mẹo Cú MeMe */}
+            <View style={styles.tipCard}>
+              <Emoji name="owl" size={44} />
+              <View style={styles.tipContent}>
+                <Text style={styles.tipTitle}>Quy tắc mở khóa vòng thi:</Text>
+                <Text style={styles.tipText}>
+                  Làm lần lượt từng bài: <Text style={styles.bold}>Bài 1 ➔ Bài 2 ➔ Bài 3</Text>. Hoàn thành cả 3 bài để được tính điểm vòng và nhận huy hiệu!
+                </Text>
               </View>
             </View>
-            <Text style={styles.seasonDesc}>
-              Thời gian: {activeSeason.startDate} – {activeSeason.endDate}
-            </Text>
-            <Text style={styles.seasonMascotTip}>
-              Hoàn thành lần lượt từng bài thi (1 → 2 → 3) để mở khóa trọn vẹn vòng thi!
-            </Text>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Emoji name="owl" size={88} />
-            <Text style={styles.muted}>Chưa có vòng thi nào.</Text>
+            <Text style={styles.emptyText}>Chưa có vòng thi nào.</Text>
           </View>
         }
         renderItem={({ item, index }) => {
@@ -247,13 +328,16 @@ export default function RoundListScreen({ navigation }: Props) {
 
           return (
             <Animated.View entering={listEntering(index)}>
-              <Card style={[styles.roundContainer, isLocked && styles.roundCardLocked]}>
+              <View style={[styles.roundCardBox, isLocked && styles.roundCardBoxLocked]}>
                 {/* Header của thẻ vòng thi */}
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
                     if (isLocked) {
-                      Alert.alert('Vòng thi chưa mở', 'Vòng này chưa mở.');
+                      notifyUser(
+                        'Vòng này chưa mở',
+                        'Vòng này hiện tại chưa mở. Hãy hoàn thành các vòng trước nhé!'
+                      );
                       return;
                     }
                     toggleExpand(item.id);
@@ -271,6 +355,7 @@ export default function RoundListScreen({ navigation }: Props) {
                       <Text style={[styles.title, isLocked && styles.textMuted]}>
                         {item.title}
                       </Text>
+                      {isLocked && <Ionicons name="lock-closed" size={16} color="#94a3b8" />}
                     </View>
 
                     <View style={styles.roundMetaRow}>
@@ -279,8 +364,10 @@ export default function RoundListScreen({ navigation }: Props) {
                       </Text>
                       {score != null && (
                         <View style={styles.roundScoreBadge}>
-                          <Ionicons name="trophy" size={13} color="#eab308" />
-                          <Text style={styles.roundScoreText}>Điểm vòng: {score}/100</Text>
+                          <Ionicons name="trophy" size={13} color="#ca8a04" />
+                          <Text style={styles.roundScoreText}>
+                            Điểm vòng: {score}/300 đ ({getRoundRank(score).label})
+                          </Text>
                         </View>
                       )}
                     </View>
@@ -305,84 +392,106 @@ export default function RoundListScreen({ navigation }: Props) {
                     {roundExams.map((exam) => renderExamItem(item, exam))}
                   </View>
                 )}
-              </Card>
+              </View>
             </Animated.View>
           );
         }}
       />
-    </Screen>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  noPadding: {
-    padding: 0,
+  container: {
+    flex: 1,
+    backgroundColor: '#5CB4F8',
+    width: '100%',
+     height:"100%"
   },
   list: {
-    padding: spacing.md,
-    gap: spacing.md,
-    paddingBottom: 40,
+    paddingHorizontal: spacing.md,
+    gap: 12,
   },
-  seasonBanner: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#93c5fd',
-    padding: spacing.md,
-    gap: 6,
-    boxShadow: '0px 3px 0px 0px #3b82f6',
+  headerSection: {
+    gap: 10,
     marginBottom: 4,
   },
-  seasonTitleRow: {
+  topBar: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  seasonTitle: {
-    ...typography.heading,
-    fontSize: 18,
-    color: '#1d4ed8',
+  headerTitleWrap: {
+    gap: 4,
   },
-  activePill: {
-    backgroundColor: '#dcfce7',
+  seasonTag: {
+    backgroundColor: '#ffffff',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#86efac',
+    alignSelf: 'flex-start',
+    borderWidth: 1.5,
+    borderColor: '#93c5fd',
   },
-  activePillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#16a34a',
+  seasonTagText: {
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 11,
+    color: '#1d4ed8',
   },
-  seasonDesc: {
-    ...typography.caption,
-    color: colors.textMuted,
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#fed7aa',
+    padding: 12,
+    boxShadow: '0px 3px 0px 0px #fb923c',
   },
-  seasonMascotTip: {
-    ...typography.caption,
-    fontWeight: '600',
-    color: '#0284c7',
-    marginTop: 2,
+  tipContent: {
+    flex: 1,
+    gap: 2,
   },
-  muted: {
-    ...typography.body,
-    color: colors.textMuted,
+  tipTitle: {
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 13,
+    color: '#9a3412',
+  },
+  tipText: {
+    fontFamily: gameFonts.bodyBold,
+    fontSize: 11,
+    color: '#475569',
+    lineHeight: 16,
+  },
+  bold: {
+    fontFamily: gameFonts.bodyExtraBold,
+    color: '#1d4ed8',
   },
   empty: {
     alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.xl,
   },
-  roundContainer: {
-    padding: spacing.md,
-    borderRadius: 22,
-    gap: spacing.sm,
+  emptyText: {
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 15,
+    color: '#ffffff',
   },
-  roundCardLocked: {
+  roundCardBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    borderWidth: 2.5,
+    borderColor: '#bfdbfe',
+    padding: spacing.md,
+    gap: 8,
+    boxShadow: '0px 4px 0px 0px #60a5fa',
+  },
+  roundCardBoxLocked: {
     backgroundColor: '#f8fafc',
-    opacity: 0.85,
+    borderColor: '#cbd5e1',
+    boxShadow: '0px 4px 0px 0px #94a3b8',
+    opacity: 0.9,
   },
   roundHeaderPress: {
     flexDirection: 'row',
@@ -396,28 +505,29 @@ const styles = StyleSheet.create({
   roundTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   title: {
-    ...typography.heading,
-    fontSize: 16,
-    color: colors.text,
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 15,
+    color: '#0f172a',
   },
   textMuted: {
-    color: colors.textMuted,
+    color: '#64748b',
   },
   roundMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flexWrap: 'wrap',
   },
   meta: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 12,
-    color: colors.textMuted,
+    color: '#64748b',
   },
   metaHighlight: {
-    fontWeight: '700',
+    fontFamily: gameFonts.bodyExtraBold,
     color: '#1d4ed8',
   },
   roundScoreBadge: {
@@ -432,9 +542,8 @@ const styles = StyleSheet.create({
     borderColor: '#fde047',
   },
   roundScoreText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 11,
-    fontWeight: '800',
     color: '#854d0e',
   },
   expandArrow: {
@@ -447,11 +556,11 @@ const styles = StyleSheet.create({
   },
   examsContainer: {
     gap: 10,
-    marginTop: 6,
+    marginTop: 4,
   },
   examsSectionTitle: {
-    ...typography.caption,
-    fontWeight: '700',
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 12,
     color: '#475569',
   },
   examCard: {
@@ -463,7 +572,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
     padding: 10,
-    gap: 10,
+    gap: 8,
   },
   examLeft: {
     flex: 1,
@@ -489,7 +598,7 @@ const styles = StyleSheet.create({
   },
   examOrderText: {
     color: '#ffffff',
-    fontWeight: '800',
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 13,
   },
   examInfo: {
@@ -497,14 +606,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   examTitle: {
-    ...typography.heading,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 13,
-    color: colors.text,
+    color: '#1e293b',
   },
   examMeta: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 11,
-    color: colors.textMuted,
+    color: '#64748b',
   },
   statusCompletedBadge: {
     flexDirection: 'row',
@@ -513,12 +622,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statusCompletedText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 11,
     color: '#16a34a',
   },
   scoreBold: {
-    fontWeight: '800',
+    fontFamily: gameFonts.bodyExtraBold,
   },
   statusAvailableBadge: {
     flexDirection: 'row',
@@ -527,9 +636,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statusAvailableText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 11,
-    fontWeight: '700',
     color: '#ea580c',
   },
   statusLockedBadge: {
@@ -539,11 +647,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statusLockedText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 11,
     color: '#64748b',
   },
-  examAction: {},
+  examActionCol: {
+    alignItems: 'flex-end',
+  },
+  completedActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   viewResultBtn: {
     backgroundColor: '#eff6ff',
     paddingHorizontal: 10,
@@ -553,24 +668,38 @@ const styles = StyleSheet.create({
     borderColor: '#93c5fd',
   },
   viewResultText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 11,
-    fontWeight: '800',
     color: '#1d4ed8',
   },
-  startExamBtn: {
-    backgroundColor: '#22c55e',
-    paddingHorizontal: 12,
+  practiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1.5,
+    borderColor: '#86efac',
+  },
+  practiceBtnText: {
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 10,
+    color: '#16a34a',
+  },
+  startExamBtn: {
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: '#16a34a',
-    boxShadow: '0px 2px 0px 0px #15803d',
+    boxShadow: '0px 3px 0px 0px #15803d',
   },
   startExamText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyExtraBold,
     fontSize: 12,
-    fontWeight: '800',
     color: '#ffffff',
   },
   lockedBtn: {
@@ -578,14 +707,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: '#f1f5f9',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#cbd5e1',
   },
   lockedBtnText: {
-    ...typography.caption,
+    fontFamily: gameFonts.bodyBold,
     fontSize: 11,
     color: '#94a3b8',
   },
