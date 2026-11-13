@@ -1,7 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { CircleButton, WoodLabel } from '../game';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CircleButton } from '../game';
 import Emoji from '../Emoji';
 import { Float } from '../motion';
 import { gameColors, gameFonts, spacing } from '../../theme';
@@ -9,12 +8,10 @@ import type { StudentInfo } from '../../services/mock/data';
 
 interface Props {
   student: StudentInfo;
-  onLogout: () => void;
+  onPressProfile?: () => void;
 }
 
-export default function StudentHeader({ student, onLogout }: Props) {
-  const [accountVisible, setAccountVisible] = useState(false);
-
+export default function StudentHeader({ student, onPressProfile }: Props) {
   const initials = student.name
     .trim()
     .split(/\s+/)
@@ -42,15 +39,16 @@ export default function StudentHeader({ student, onLogout }: Props) {
         <View style={styles.headerActions}>
           <Pressable
             accessibilityRole="button"
-            onPress={() => setAccountVisible(true)}
+            accessibilityLabel="Mở hồ sơ cá nhân"
+            onPress={onPressProfile}
             style={styles.avatar}
           >
             <Text style={styles.avatarText}>{initials}</Text>
           </Pressable>
           <CircleButton
             icon="settings-sharp"
-            accessibilityLabel="Tài khoản và cài đặt"
-            onPress={() => setAccountVisible(true)}
+            accessibilityLabel="Hồ sơ cá nhân"
+            onPress={onPressProfile ?? (() => {})}
             tone="blue"
           />
         </View>
@@ -83,47 +81,6 @@ export default function StudentHeader({ student, onLogout }: Props) {
           </View>
         </Float>
       </View>
-
-      {/* Modal thông tin tài khoản & Đăng xuất (tương thích cả Web & Mobile) */}
-      <Modal
-        visible={accountVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAccountVisible(false)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setAccountVisible(false)}>
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <WoodLabel text="Tài khoản học sinh" fontSize={16} />
-            <View style={styles.modalBody}>
-              <Emoji name="owl" size={56} />
-              <Text style={styles.modalName}>{student.name}</Text>
-              <Text style={styles.modalRole}>
-                {student.role} · ⭐ {student.coins} xu · 🔥 {student.streakDays} ngày
-              </Text>
-            </View>
-            <View style={styles.modalActions}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setAccountVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <Text style={styles.modalCloseText}>Đóng</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setAccountVisible(false);
-                  onLogout();
-                }}
-                style={styles.modalLogoutBtn}
-              >
-                <Ionicons name="log-out-outline" size={16} color="#ffffff" />
-                <Text style={styles.modalLogoutText}>Đăng xuất</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -276,73 +233,6 @@ const styles = StyleSheet.create({
     top: -12,
     left: 14,
     transform: [{ rotate: '-12deg' }],
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: '#fffdf8',
-    borderRadius: 24,
-    borderWidth: 3,
-    borderColor: '#fed7aa',
-    padding: 20,
-    alignItems: 'center',
-    gap: 14,
-  },
-  modalBody: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  modalName: {
-    fontFamily: gameFonts.display,
-    fontSize: 20,
-    color: '#1e293b',
-  },
-  modalRole: {
-    fontFamily: gameFonts.bodyBold,
-    fontSize: 13,
-    color: '#475569',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  modalCloseBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCloseText: {
-    fontFamily: gameFonts.bodyExtraBold,
-    fontSize: 13,
-    color: '#334155',
-  },
-  modalLogoutBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: '#ef4444',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalLogoutText: {
-    fontFamily: gameFonts.bodyExtraBold,
-    fontSize: 13,
-    color: '#ffffff',
   },
 });
 

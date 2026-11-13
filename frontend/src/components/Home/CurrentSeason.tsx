@@ -48,6 +48,11 @@ export default function CurrentSeason({
 
       {/* Danh sách các thẻ vòng */}
       <View style={styles.roundsList}>
+        {rounds.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>Chưa có vòng thi nào trong đợt này.</Text>
+          </View>
+        ) : null}
         {rounds.map((round) => {
           const progress = getRoundProgress(round.id, attempts);
           const isLocked = round.status === 'LOCKED';
@@ -168,6 +173,19 @@ const styles = StyleSheet.create({
   roundsList: {
     gap: 10,
     marginTop: 4,
+  },
+  emptyBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#bfdbfe',
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontFamily: gameFonts.bodyBold,
+    fontSize: 13,
+    color: '#64748b',
   },
   roundCard: {
     flexDirection: 'row',

@@ -16,15 +16,18 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { YStack } from 'tamagui';
 import Emoji from '../../components/Emoji';
 import type { EmojiName } from '../../components/emojiAssets';
 import { GameButton, WoodLabel } from '../../components/game';
+import { Animated, listEntering } from '../../components/motion';
 import AssignmentCard from '../../components/Home/AssignmentCard';
 import CurrentSeason from '../../components/Home/CurrentSeason';
 import LearningProgress from '../../components/Home/LearningProgress';
 import PracticeCard from '../../components/Home/PracticeCard';
 import StudentHeader from '../../components/Home/StudentHeader';
 import { useAuth } from '../../hooks/useAuth';
+import { useResponsive } from '../../hooks/useResponsive';
 import type { UserStackParamList, UserTabParamList } from '../../navigation/types';
 import {
   getRuntimeAttempts,
@@ -48,8 +51,9 @@ type Props = CompositeScreenProps<
 >;
 
 export default function HomeScreen({ navigation }: Props) {
-  const { logout } = useAuth();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const { isLandscape, isTablet } = useResponsive();
   const [attempts, setAttempts] = useState<ExamAttempt[]>(getRuntimeAttempts());
   const [topicModalVisible, setTopicModalVisible] = useState(false);
 
@@ -195,6 +199,7 @@ export default function HomeScreen({ navigation }: Props) {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
+          (isLandscape || isTablet) && styles.scrollContentWide,
           {
             paddingTop: insets.top > 0 ? insets.top + 8 : 16,
             paddingBottom: insets.bottom > 0 ? insets.bottom + 24 : 32,
@@ -203,44 +208,62 @@ export default function HomeScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {/* 1 & 2: Header + Chào học sinh + Xu + Streak */}
-        <StudentHeader student={studentInfo} onLogout={logout} />
+        <Animated.View entering={listEntering(0)}>
+          <StudentHeader
+            student={{
+              ...studentInfo,
+              name: user?.fullName || studentInfo.name,
+            }}
+            onPressProfile={() => navigation.navigate('Profile')}
+          />
+        </Animated.View>
 
         {/* 3: Nút lớn Bắt đầu ôn tập */}
-        <GameButton
-          label="Bắt đầu ôn tập"
-          pulse
-          onPress={() => navigation.navigate('RoundList')}
-          style={styles.bigButton}
-        />
+        <Animated.View entering={listEntering(1)}>
+          <GameButton
+            label="Bắt đầu ôn tập"
+            pulse
+            onPress={() => navigation.navigate('RoundList')}
+            style={styles.bigButton}
+          />
+        </Animated.View>
 
         {/* 4: Đợt thi hiện tại (Active) */}
-        <CurrentSeason
-          season={activeSeason}
-          rounds={activeRounds}
-          attempts={attempts}
-          onSelectRound={handleSelectRound}
-          onViewAllRounds={() => navigation.navigate('RoundList')}
-        />
+        <Animated.View entering={listEntering(2)}>
+          <CurrentSeason
+            season={activeSeason}
+            rounds={activeRounds}
+            attempts={attempts}
+            onSelectRound={handleSelectRound}
+            onViewAllRounds={() => navigation.navigate('RoundList')}
+          />
+        </Animated.View>
 
         {/* 5: Đề kiểm tra giáo viên giao */}
-        <AssignmentCard
-          assignments={syncedAssignments}
-          onStartAssignment={handleStartAssignment}
-          onViewResult={handleViewAssignmentResult}
-        />
+        <Animated.View entering={listEntering(3)}>
+          <AssignmentCard
+            assignments={syncedAssignments}
+            onStartAssignment={handleStartAssignment}
+            onViewResult={handleViewAssignmentResult}
+          />
+        </Animated.View>
 
         {/* 6: Ôn tập nhanh */}
-        <PracticeCard
-          onPracticeRound={handlePracticeRound}
-          onPracticeTopic={handlePracticeTopic}
-        />
+        <Animated.View entering={listEntering(4)}>
+          <PracticeCard
+            onPracticeRound={handlePracticeRound}
+            onPracticeTopic={handlePracticeTopic}
+          />
+        </Animated.View>
 
         {/* 7: Tiến độ học tập */}
-        <LearningProgress
-          completed={completedLessonsCount}
-          total={learningProgress.total}
-          quote={learningProgress.quote}
-        />
+        <Animated.View entering={listEntering(5)}>
+          <LearningProgress
+            completed={completedLessonsCount}
+            total={learningProgress.total}
+            quote={learningProgress.quote}
+          />
+        </Animated.View>
       </ScrollView>
 
       {/* Modal chọn chủ đề luyện tập */}
@@ -257,7 +280,7 @@ export default function HomeScreen({ navigation }: Props) {
               Chọn chủ đề bạn muốn ôn luyện (có giải thích chi tiết từng câu):
             </Text>
 
-            <View style={styles.topicList}>
+            <YStack width="100%" gap={8}>
               {practiceCategories.map((cat) => (
                 <Pressable
                   key={cat.id}
@@ -271,14 +294,14 @@ export default function HomeScreen({ navigation }: Props) {
                   <View style={[styles.topicIconWrap, { backgroundColor: cat.color + '18' }]}>
                     <Emoji name={cat.icon as EmojiName} size={26} />
                   </View>
-                  <View style={styles.topicInfo}>
+                  <YStack flex={1} gap={2}>
                     <Text style={styles.topicTitle}>{cat.title}</Text>
                     <Text style={styles.topicDesc}>{cat.description}</Text>
-                  </View>
+                  </YStack>
                   <Ionicons name="play-circle" size={24} color={cat.color} />
                 </Pressable>
               ))}
-            </View>
+            </YStack>
 
             <Pressable
               accessibilityRole="button"
@@ -304,6 +327,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.md,
     gap: 16,
+    width: '100%',
+    maxWidth: 540,
+    alignSelf: 'center',
+  },
+  scrollContentWide: {
+    maxWidth: 880,
   },
   bigButton: {
     width: '100%',
