@@ -10,6 +10,7 @@ export type UserTabParamList = {
   Home: undefined;
   RoundList: undefined;
   History: undefined;
+  Profile: undefined;
 };
 
 /** Stack của user: tab chính + các màn làm bài đè lên tab. */

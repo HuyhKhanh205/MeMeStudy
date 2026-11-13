@@ -65,6 +65,7 @@ export interface MockQuestionItem {
 
 export interface ExamAttempt {
   id: number;
+  userId?: number;
   seasonId: string;
   roundId: number;
   examId: number;

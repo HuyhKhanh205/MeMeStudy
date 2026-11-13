@@ -196,6 +196,7 @@ export const mockApi = {
     // Lưu vào lịch sử runtime
     const examAttempt: ExamAttempt = {
       id: attemptId,
+      userId: user.id,
       seasonId: attempt.seasonId || round?.seasonId || '2026-2027',
       roundId: attempt.roundId,
       examId: attempt.examId,
@@ -235,7 +236,8 @@ export const mockApi = {
    */
   async myResults(): Promise<AttemptResult[]> {
     await delay(150);
-    const userAttempts = getRuntimeAttempts();
+    const user = await currentUser();
+    const userAttempts = getRuntimeAttempts().filter((a) => (a.userId ?? 1) === user.id);
     return userAttempts.map((a) => ({
       attemptId: a.id,
       roundId: a.roundId,

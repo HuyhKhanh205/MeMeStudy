@@ -6,6 +6,7 @@ import { Bounce } from '../components/motion';
 import ExamScreen from '../screens/user/ExamScreen';
 import HistoryScreen from '../screens/user/HistoryScreen';
 import HomeScreen from '../screens/user/HomeScreen';
+import ProfileScreen from '../screens/user/ProfileScreen';
 import ResultScreen from '../screens/user/ResultScreen';
 import RoundListScreen from '../screens/user/RoundListScreen';
 import { colors } from '../theme';
@@ -19,6 +20,7 @@ const tabIcons: Record<keyof UserTabParamList, EmojiName> = {
   Home: 'house',
   RoundList: 'memo',
   History: 'trophy',
+  Profile: 'graduationCap',
 };
 
 function Tabs() {
@@ -47,6 +49,7 @@ function Tabs() {
       />
       <Tab.Screen name="RoundList" component={RoundListScreen} options={{ title: 'Vòng thi' }} />
       <Tab.Screen name="History" component={HistoryScreen} options={{ title: 'Lịch sử' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Cá nhân' }} />
     </Tab.Navigator>
   );
 }
