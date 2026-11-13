@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { Text } from 'tamagui';
 import Button from '../../components/Button';
 import Screen from '../../components/Screen';
 import TextField from '../../components/TextField';
@@ -87,7 +88,16 @@ export default function RegisterScreen({ navigation }: Props) {
           onSubmitEditing={handleSubmit}
         />
 
-        {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
+        {submitError ? (
+          <Text
+            fontSize={typography.body.fontSize}
+            fontWeight={typography.body.fontWeight}
+            lineHeight={typography.body.lineHeight}
+            color={colors.danger}
+          >
+            {submitError}
+          </Text>
+        ) : null}
 
         <Button title="Đăng ký" onPress={handleSubmit} loading={submitting} />
         <Button title="Đã có tài khoản? Đăng nhập" variant="ghost" onPress={navigation.goBack} />
@@ -104,9 +114,5 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     width: '100%',
     alignSelf: 'center',
-  },
-  error: {
-    ...typography.body,
-    color: colors.danger,
   },
 });
