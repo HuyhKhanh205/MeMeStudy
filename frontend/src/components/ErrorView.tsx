@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { colors, spacing, typography } from '../theme';
 import Button from './Button';
 
@@ -9,30 +9,32 @@ interface Props {
 
 export default function ErrorView({ message, onRetry }: Props) {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Đã xảy ra lỗi</Text>
-      <Text style={styles.message}>{message}</Text>
+    <YStack
+      flex={1}
+      justifyContent="center"
+      gap={spacing.md}
+      padding={spacing.lg}
+      backgroundColor={colors.background}
+    >
+      <Text
+        fontSize={typography.heading.fontSize}
+        fontWeight={typography.heading.fontWeight}
+        lineHeight={typography.heading.lineHeight}
+        color={colors.text}
+        textAlign="center"
+      >
+        Đã xảy ra lỗi
+      </Text>
+      <Text
+        fontSize={typography.body.fontSize}
+        fontWeight={typography.body.fontWeight}
+        lineHeight={typography.body.lineHeight}
+        color={colors.danger}
+        textAlign="center"
+      >
+        {message}
+      </Text>
       {onRetry ? <Button title="Thử lại" variant="secondary" onPress={onRetry} /> : null}
-    </View>
+    </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  message: {
-    ...typography.body,
-    color: colors.danger,
-    textAlign: 'center',
-  },
-});
