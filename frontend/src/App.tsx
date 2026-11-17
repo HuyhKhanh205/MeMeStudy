@@ -5,6 +5,8 @@ import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
+import { TamaguiProvider } from 'tamagui';
+import tamaguiConfig from '../tamagui.config';
 import LoadingView from './components/LoadingView';
 import { AuthProvider } from './hooks/useAuth';
 import RootNavigator from './navigation/RootNavigator';
@@ -19,17 +21,19 @@ export default function App() {
   });
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
-      {fontsLoaded || fontError ? (
-        <Provider store={store}>
-          <AuthProvider>
-            <RootNavigator />
-          </AuthProvider>
-        </Provider>
-      ) : (
-        <LoadingView />
-      )}
-    </SafeAreaProvider>
+    <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        {fontsLoaded || fontError ? (
+          <Provider store={store}>
+            <AuthProvider>
+              <RootNavigator />
+            </AuthProvider>
+          </Provider>
+        ) : (
+          <LoadingView />
+        )}
+      </SafeAreaProvider>
+    </TamaguiProvider>
   );
 }

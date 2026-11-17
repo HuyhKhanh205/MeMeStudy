@@ -11,27 +11,27 @@ Bố cục, màu sắc và cách sắp xếp màn hình theo file thiết kế F
 - **Cách lấy**: tải file PNG 256×256 gốc, không chỉnh sửa (chỉ bỏ hậu tố `_3d` trong tên file), từ `https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/<Tên>/3D/<tên>_3d.png` (ngày 06/11/2026)
 - **Thư mục trong dự án**: `assets/emoji/` · khai báo trong `src/components/emojiAssets.ts`
 
-| File | Emoji gốc | Dùng ở |
+| File (`assets/emoji/`) | Emoji gốc | Dùng ở |
 | --- | --- | --- |
-| `owl.png` | 🦉 Owl | Login, Home, trạng thái trống, mascot màn Kết quả |
-| `graduation_cap.png` | 🎓 Graduation cap | Mũ của cú mèo ở màn Kết quả (giống mascot Figma) |
-| `octopus.png` | 🐙 Octopus | Mascot màn Làm bài |
-| `tropical_fish.png` | 🐠 Tropical fish | Trang trí nền biển (màn Làm bài) |
-| `fish.png` | 🐟 Fish | Trang trí nền biển (lật ngang) |
-| `coral.png` | 🪸 Coral | Trang trí đáy biển |
-| `herb.png` | 🌿 Herb | Rong biển ở đáy biển (thay rong trong Figma) |
-| `spiral_shell.png` | 🐚 Spiral shell | Đáy biển (thay rương báu trong Figma) |
-| `memo.png` | 📝 Memo | Thẻ "Vào thi" ở Home, icon tab "Vòng thi", Lịch sử (điểm < 5) |
-| `trophy.png` | 🏆 Trophy | Thẻ "Lịch sử" ở Home, icon tab "Lịch sử", Lịch sử (điểm ≥ 8) |
-| `party_popper.png` | 🎉 Party popper | Lịch sử (điểm 5–8) |
-| `books.png` | 📚 Books | Vòng thi đang mở |
-| `locked.png` | 🔒 Locked | Vòng thi chưa mở |
-| `red_question_mark.png` | ❓ Red question mark | Dashboard admin — số câu hỏi |
-| `clipboard.png` | 📋 Clipboard | Dashboard admin — số vòng thi |
-| `hourglass_not_done.png` | ⏳ Hourglass not done | Dashboard admin — vòng đang mở |
-| `house.png` | 🏠 House | Icon tab "Trang chủ" |
-| `star.png` | ⭐ Star | Ngôi sao ở thanh tiến trình, thanh thông tin, 3 sao và nhãn điểm màn Kết quả |
-| `sparkles.png` | ✨ Sparkles | Hai bên tên app ở màn Login |
+| `assets/emoji/owl.png` | 🦉 Owl | Login, Home, avatar tròn màn Hồ sơ cá nhân (`ProfileScreen`), trạng thái trống, mascot màn Kết quả |
+| `assets/emoji/graduation_cap.png` | 🎓 Graduation cap | Icon tab "Cá nhân" (`UserTabs`), mũ tốt nghiệp của avatar Hồ sơ cá nhân (`ProfileScreen`) và mascot màn Kết quả |
+| `assets/emoji/octopus.png` | 🐙 Octopus | Mascot màn Làm bài (`ExamScreen`) |
+| `assets/emoji/tropical_fish.png` | 🐠 Tropical fish | Trang trí nền biển (màn Làm bài) |
+| `assets/emoji/fish.png` | 🐟 Fish | Trang trí nền biển (lật ngang) |
+| `assets/emoji/coral.png` | 🪸 Coral | Trang trí đáy biển |
+| `assets/emoji/herb.png` | 🌿 Herb | Rong biển ở đáy biển (thay rong trong Figma) |
+| `assets/emoji/spiral_shell.png` | 🐚 Spiral shell | Đáy biển (thay rương báu trong Figma) |
+| `assets/emoji/memo.png` | 📝 Memo | Thẻ "Ôn theo vòng" & modal chủ đề ở `HomeScreen` (`PracticeCard`), icon tab "Vòng thi", thống kê "Số lượt thi" ở `ProfileScreen`, `HistoryScreen` |
+| `assets/emoji/trophy.png` | 🏆 Trophy | Huy hiệu vòng hoàn thành ở `RoundListScreen`, icon tab "Lịch sử", thống kê "Điểm trung bình" ở `ProfileScreen`, `HistoryScreen` |
+| `assets/emoji/party_popper.png` | 🎉 Party popper | Chủ đề Listening ở `HomeScreen`, thẻ tổng kết lượt thi ở `ProfileScreen`, `HistoryScreen` |
+| `assets/emoji/books.png` | 📚 Books | Vòng thi đang mở ở `RoundListScreen`, chủ đề Từ vựng ở `HomeScreen`, minh hoạ câu hỏi IMAGE |
+| `assets/emoji/locked.png` | 🔒 Locked | Vòng thi chưa mở ở `RoundListScreen` |
+| `assets/emoji/red_question_mark.png` | ❓ Red question mark | Dashboard admin — số câu hỏi |
+| `assets/emoji/clipboard.png` | 📋 Clipboard | Dashboard admin — số vòng thi |
+| `assets/emoji/hourglass_not_done.png` | ⏳ Hourglass not done | Dashboard admin — vòng đang mở |
+| `assets/emoji/house.png` | 🏠 House | Icon tab "Trang chủ" (`UserTabs`), minh hoạ câu hỏi IMAGE |
+| `assets/emoji/star.png` | ⭐ Star | Thẻ "Luyện theo chủ đề" & chủ đề Hình ảnh ở `HomeScreen` (`PracticeCard`), ngôi sao ở thanh tiến trình, thanh thông tin, 3 sao màn Kết quả |
+| `assets/emoji/sparkles.png` | ✨ Sparkles | Hai bên tên app ở màn Login và hai bên họ tên ở màn Hồ sơ cá nhân (`ProfileScreen`) |
 
 ## 2. Icon giao diện — Ionicons (qua `@expo/vector-icons`)
 
@@ -51,6 +51,10 @@ Bố cục, màu sắc và cách sắp xếp màn hình theo file thiết kế F
 Nền gradient, tia sáng, bong bóng nước, đồi cát/đồi cỏ (`components/game/Ellipse.tsx`), confetti, bảng gỗ, nút 3D, nền tròn pastel sau emoji (`components/EmojiBadge.tsx`) — đều vẽ bằng `View` + `expo-linear-gradient` theo màu và kích thước lấy từ Figma của nhóm.
 
 Toàn bộ chuyển động (mascot nhấp nhô, cá bơi, bong bóng trôi, confetti rơi, sao nảy…) do nhóm tự viết trong `components/motion.tsx`, dùng thư viện `react-native-reanimated` (MIT, Software Mansion).
+
+## 5. Ảnh nền (Background Asset)
+
+- `assets/background/Home.png`: Ảnh nền bầu trời, mây và đồi cỏ của dự án nhóm, dùng làm `ImageBackground` cho các màn hình học sinh (`HomeScreen`, `RoundListScreen`, `HistoryScreen`, `ResultScreen`).
 
 ---
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { TextInput, type TextInputProps } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { colors, radius, spacing, typography } from '../theme';
 
 interface Props extends TextInputProps {
@@ -10,9 +11,22 @@ interface Props extends TextInputProps {
 export default function TextField({ label, error, style, onFocus, onBlur, ...rest }: Props) {
   const [focused, setFocused] = useState(false);
 
+  const borderColor = error
+    ? colors.danger
+    : focused
+      ? colors.primary
+      : colors.border;
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+    <YStack gap={spacing.xs}>
+      <Text
+        fontSize={typography.label.fontSize}
+        fontWeight={typography.label.fontWeight}
+        lineHeight={typography.label.lineHeight}
+        color={colors.text}
+      >
+        {label}
+      </Text>
       <TextInput
         placeholderTextColor={colors.textMuted}
         autoCapitalize="none"
@@ -28,43 +42,31 @@ export default function TextField({ label, error, style, onFocus, onBlur, ...res
           onBlur?.(e);
         }}
         style={[
-          styles.input,
-          focused && styles.inputFocused,
-          !!error && styles.inputError,
+          {
+            fontSize: typography.body.fontSize,
+            fontWeight: typography.body.fontWeight,
+            lineHeight: typography.body.lineHeight,
+            minHeight: 48,
+            paddingHorizontal: spacing.md,
+            borderRadius: radius.md,
+            borderWidth: 1,
+            borderColor,
+            backgroundColor: colors.surface,
+            color: colors.text,
+          },
           style,
         ]}
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-    </View>
+      {error ? (
+        <Text
+          fontSize={typography.caption.fontSize}
+          fontWeight={typography.caption.fontWeight}
+          lineHeight={typography.caption.lineHeight}
+          color={colors.danger}
+        >
+          {error}
+        </Text>
+      ) : null}
+    </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.xs,
-  },
-  label: {
-    ...typography.label,
-    color: colors.text,
-  },
-  input: {
-    ...typography.body,
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    color: colors.text,
-  },
-  inputFocused: {
-    borderColor: colors.primary,
-  },
-  inputError: {
-    borderColor: colors.danger,
-  },
-  error: {
-    ...typography.caption,
-    color: colors.danger,
-  },
-});

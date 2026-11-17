@@ -56,20 +56,30 @@ const seabed: Deco[] = [
   { name: 'spiralShell', size: 58, right: 26, bottom: 12 },
 ];
 
-function DecoEmoji({ deco, topOffset }: { deco: Deco; topOffset: number }) {
+function DecoEmoji({
+  deco,
+  topOffset,
+  yScale,
+}: {
+  deco: Deco;
+  topOffset: number;
+  yScale: number;
+}) {
   const { name, size, flip, top, motion, delay, ...edges } = deco;
-  const position = [styles.abs, edges, top != null && { top: top + topOffset }];
+  const scaledTop = top != null ? Math.round(top * yScale) + topOffset : undefined;
+  const position = [styles.abs, edges, scaledTop != null && { top: scaledTop }];
   const image = <Emoji name={name} size={size} flip={flip} />;
   if (motion === 'swim') return <Swim style={position} delay={delay}>{image}</Swim>;
   if (motion === 'sway') return <Sway style={position} delay={delay}>{image}</Sway>;
   return <View style={position}>{image}</View>;
 }
 
-/** Nền "dưới đáy biển" của màn làm bài (bố cục theo Figma A3). */
+/** Nền "dưới đáy biển" của màn làm bài (bố cục theo Figma A3), bám mép dưới ở cả dọc và ngang. */
 export default function OceanBackground({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const topOffset = insets.top - FRAME_STATUS_BAR;
+  const yScale = height < 760 ? Math.max(0.42, height / 844) : 1;
 
   return (
     <LinearGradient colors={gameGradients.oceanScreen} style={styles.fill}>
@@ -88,13 +98,13 @@ export default function OceanBackground({ children }: { children: ReactNode }) {
             ]}
           />
         ))}
-        {/* Đồi cát: elip 640×240 trên frame 390 → giãn theo bề ngang màn hình. */}
+        {/* Đồi cát: elip bám mép dưới màn hình, giãn theo bề ngang ở cả dọc và ngang. */}
         <Ellipse width={width + 250} height={240} left={-125} bottom={-166} color="#F3D9A4" />
         {/* Bong bóng trôi lên rồi mờ dần, mỗi quả một nhịp khác nhau. */}
         {bubbles.map(({ size, top, ...edges }, i) => (
           <RiseFade
             key={i}
-            style={[styles.abs, edges, { top: top + topOffset }]}
+            style={[styles.abs, edges, { top: Math.round(top * yScale) + topOffset }]}
             delay={i * 650}
             duration={4200 + (i % 3) * 900}
           >
@@ -102,10 +112,10 @@ export default function OceanBackground({ children }: { children: ReactNode }) {
           </RiseFade>
         ))}
         {fishes.map((deco) => (
-          <DecoEmoji key={deco.name} deco={deco} topOffset={topOffset} />
+          <DecoEmoji key={deco.name} deco={deco} topOffset={topOffset} yScale={yScale} />
         ))}
         {seabed.map((deco, i) => (
-          <DecoEmoji key={i} deco={deco} topOffset={topOffset} />
+          <DecoEmoji key={i} deco={deco} topOffset={topOffset} yScale={1} />
         ))}
       </View>
       {children}

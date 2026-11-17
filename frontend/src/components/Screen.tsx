@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ScrollView, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { YStack } from 'tamagui';
 import { colors, spacing } from '../theme';
 
 interface Props {
@@ -19,31 +20,27 @@ export default function Screen({
   contentStyle,
 }: Props) {
   return (
-    <SafeAreaView style={styles.safe} edges={edges}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={edges}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[styles.content, contentStyle]}
+          contentContainerStyle={[
+            { padding: spacing.md, gap: spacing.md },
+            contentStyle,
+          ]}
           keyboardShouldPersistTaps="handled"
         >
           {children}
         </ScrollView>
       ) : (
-        <View style={[styles.content, styles.fill, contentStyle]}>{children}</View>
+        <YStack
+          flex={1}
+          padding={spacing.md}
+          gap={spacing.md}
+          style={contentStyle as any}
+        >
+          {children}
+        </YStack>
       )}
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  fill: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.md,
-    gap: spacing.md,
-  },
-});

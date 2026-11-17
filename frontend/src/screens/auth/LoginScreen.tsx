@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { Text, XStack, YStack } from 'tamagui';
 import Button from '../../components/Button';
 import Emoji from '../../components/Emoji';
 import { Float, Pulse } from '../../components/motion';
@@ -42,22 +43,38 @@ export default function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen scroll edges={['top', 'left', 'right', 'bottom']} contentStyle={styles.content}>
-        <View style={styles.header}>
+        <YStack gap={spacing.xs} marginBottom={spacing.md}>
           <Float style={styles.mascot} distance={8}>
             <Emoji name="owl" size={104} />
           </Float>
-          <View style={styles.titleRow}>
+          <XStack alignItems="center" justifyContent="center" gap={spacing.sm}>
             {/* ✨ lấp lánh lệch nhịp hai bên tên app. */}
             <Pulse scale={1.25} duration={1400}>
               <Emoji name="sparkles" size={28} />
             </Pulse>
-            <Text style={styles.title}>MeMeStudy</Text>
+            <Text
+              fontSize={typography.title.fontSize}
+              fontWeight={typography.title.fontWeight}
+              lineHeight={typography.title.lineHeight}
+              color={colors.primary}
+              textAlign="center"
+            >
+              MeMeStudy
+            </Text>
             <Pulse scale={1.25} duration={1700}>
               <Emoji name="sparkles" size={28} />
             </Pulse>
-          </View>
-          <Text style={styles.subtitle}>Đăng nhập để bắt đầu làm bài thi</Text>
-        </View>
+          </XStack>
+          <Text
+            fontSize={typography.body.fontSize}
+            fontWeight={typography.body.fontWeight}
+            lineHeight={typography.body.lineHeight}
+            color={colors.textMuted}
+            textAlign="center"
+          >
+            Đăng nhập để bắt đầu làm bài thi
+          </Text>
+        </YStack>
 
         <TextField
           label="Tên đăng nhập"
@@ -80,7 +97,16 @@ export default function LoginScreen({ navigation }: Props) {
           onSubmitEditing={handleSubmit}
         />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? (
+          <Text
+            fontSize={typography.body.fontSize}
+            fontWeight={typography.body.fontWeight}
+            lineHeight={typography.body.lineHeight}
+            color={colors.danger}
+          >
+            {error}
+          </Text>
+        ) : null}
 
         <Button title="Đăng nhập" onPress={handleSubmit} loading={submitting} />
         <Button
@@ -90,7 +116,13 @@ export default function LoginScreen({ navigation }: Props) {
         />
 
         {config.useMock ? (
-          <Text style={styles.hint}>
+          <Text
+            fontSize={typography.caption.fontSize}
+            fontWeight={typography.caption.fontWeight}
+            lineHeight={typography.caption.lineHeight}
+            color={colors.textMuted}
+            textAlign="center"
+          >
             Chế độ mock — tài khoản: user / 123456 hoặc admin / 123456
           </Text>
         ) : null}
@@ -110,37 +142,8 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  header: {
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
   mascot: {
     alignSelf: 'center',
     marginBottom: spacing.sm,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  title: {
-    ...typography.title,
-    color: colors.primary,
-    textAlign: 'center',
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  error: {
-    ...typography.body,
-    color: colors.danger,
-  },
-  hint: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
   },
 });
