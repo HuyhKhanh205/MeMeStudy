@@ -26,6 +26,7 @@ import CurrentSeason from '../../components/Home/CurrentSeason';
 import LearningProgress from '../../components/Home/LearningProgress';
 import PracticeCard from '../../components/Home/PracticeCard';
 import StudentHeader from '../../components/Home/StudentHeader';
+import { useAuth } from '../../hooks/useAuth';
 import { useResponsive } from '../../hooks/useResponsive';
 import type { UserStackParamList, UserTabParamList } from '../../navigation/types';
 import {
@@ -50,6 +51,7 @@ type Props = CompositeScreenProps<
 >;
 
 export default function HomeScreen({ navigation }: Props) {
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { isLandscape, isTablet } = useResponsive();
   const [attempts, setAttempts] = useState<ExamAttempt[]>(getRuntimeAttempts());
@@ -208,7 +210,10 @@ export default function HomeScreen({ navigation }: Props) {
         {/* 1 & 2: Header + Chào học sinh + Xu + Streak */}
         <Animated.View entering={listEntering(0)}>
           <StudentHeader
-            student={studentInfo}
+            student={{
+              ...studentInfo,
+              name: user?.fullName || studentInfo.name,
+            }}
             onPressProfile={() => navigation.navigate('Profile')}
           />
         </Animated.View>
