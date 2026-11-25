@@ -340,7 +340,7 @@ public class InMemoryStore {
         if (DatabaseManager.isMariaDbAvailable()) {
             try (Connection conn = DatabaseManager.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
-                         "INSERT INTO users (username, password_hash, full_name, role, coins, streak_days) VALUES (?, ?, ?, ?, 120, 1)",
+                         "INSERT INTO users (username, password_hash, full_name, gender, birth_date, class_name, role, coins, streak_days) VALUES (?, ?, ?, '', '', '', ?, 0, 0)",
                          Statement.RETURN_GENERATED_KEYS)) {
                 ps.setString(1, username.trim());
                 ps.setString(2, hash);
@@ -350,7 +350,7 @@ public class InMemoryStore {
                 try (ResultSet keys = ps.getGeneratedKeys()) {
                     if (keys.next()) {
                         int newId = keys.getInt(1);
-                        UserDto u = new UserDto(newId, username.trim(), fullName.trim(), normalizedRole);
+                        UserDto u = new UserDto(newId, username.trim(), fullName.trim(), "", "", "", normalizedRole);
                         ACCOUNTS.add(new AccountRecord(u, hash));
                         USER_RESULTS.put(newId, new CopyOnWriteArrayList<>());
                         return u;
@@ -362,7 +362,7 @@ public class InMemoryStore {
         }
 
         int id = NEXT_USER_ID.getAndIncrement();
-        UserDto user = new UserDto(id, username.trim(), fullName.trim(), normalizedRole);
+        UserDto user = new UserDto(id, username.trim(), fullName.trim(), "", "", "", normalizedRole);
         ACCOUNTS.add(new AccountRecord(user, hash));
         USER_RESULTS.put(id, new CopyOnWriteArrayList<>());
         return user;
@@ -376,9 +376,9 @@ public class InMemoryStore {
             String className
     ) {
         String cleanName = fullName != null ? fullName.trim() : "";
-        String cleanGender = (gender != null && !gender.isBlank()) ? gender.trim() : "Nam";
-        String cleanBirthDate = (birthDate != null && !birthDate.isBlank()) ? birthDate.trim() : "15/05/2015";
-        String cleanClassName = (className != null && !className.isBlank()) ? className.trim() : "Lớp 5A";
+        String cleanGender = gender != null ? gender.trim() : "";
+        String cleanBirthDate = birthDate != null ? birthDate.trim() : "";
+        String cleanClassName = className != null ? className.trim() : "";
 
         if (DatabaseManager.isMariaDbAvailable()) {
             try (Connection conn = DatabaseManager.getConnection();
@@ -846,16 +846,54 @@ public class InMemoryStore {
         Map<String, Object> studentMap = new LinkedHashMap<>();
         studentMap.put("name", user.getFullName());
         studentMap.put("role", "TEACHER".equals(user.getRole()) ? "Giáo viên" : "ADMIN".equals(user.getRole()) ? "Quản trị" : "Học sinh");
-        studentMap.put("coins", coins);
-        studentMap.put("streakDays", streakDays);
+        studentMap.put("coins", user.getId() == 1 ? coins : getResultsForUser(user.getId()).size() * 20);
+        studentMap.put("streakDays", user.getId() == 1 ? streakDays : (getResultsForUser(user.getId()).isEmpty() ? 0 : 1));
+
+        List<AttemptResultDto> userAttempts = getResultsForUser(user.getId());
+        List<RoundDto> baseRounds = getRounds();
+        List<RoundDto> userRounds = new ArrayList<>();
+        boolean prevRoundCompleted = true;
+        for (RoundDto r : baseRounds) {
+            long doneExams = userAttempts.stream()
+                    .filter(a -> a.getRoundId() == r.getId())
+                    .map(a -> a.getExamId() != null ? a.getExamId() : a.getExamOrder())
+                    .distinct()
+                    .count();
+            String computedStatus;
+            boolean computedOpen;
+            if (!prevRoundCompleted) {
+                computedStatus = "LOCKED";
+                computedOpen = false;
+            } else if (doneExams >= 3) {
+                computedStatus = "COMPLETED";
+                computedOpen = true;
+            } else {
+                computedStatus = "IN_PROGRESS";
+                computedOpen = true;
+            }
+            prevRoundCompleted = "COMPLETED".equals(computedStatus);
+            userRounds.add(new RoundDto(
+                    r.getId(),
+                    r.getSeasonId(),
+                    r.getPrerequisiteRoundId(),
+                    r.getOrder(),
+                    r.getRoundNumber(),
+                    computedStatus,
+                    r.getTitle(),
+                    r.getDescription(),
+                    r.getDurationMinutes(),
+                    r.getQuestionCount(),
+                    computedOpen
+            ));
+        }
 
         payload.put("databaseConnected", DatabaseManager.isMariaDbAvailable());
         payload.put("student", studentMap);
         payload.put("seasons", seasonsList);
-        payload.put("rounds", getRounds());
+        payload.put("rounds", userRounds);
         payload.put("exams", examsList);
         payload.put("questions", getQuestions());
-        payload.put("attempts", getResultsForUser(user.getId()));
+        payload.put("attempts", userAttempts);
         payload.put("teacherAssignments", assignmentsList);
         return payload;
     }
