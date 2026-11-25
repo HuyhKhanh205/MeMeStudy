@@ -145,11 +145,11 @@ public class DatabaseManager {
     }
 
     private static void ensureDefaultPasswords(Connection conn) {
-        // Tự động bổ sung cột gender, birth_date, class_name nếu bảng users cũ chưa có
+        // Tự động bổ sung cột gender, birth_date, class_name nếu bảng users cũ chưa có (mặc định rỗng cho user mới)
         try (Statement st = conn.createStatement()) {
-            st.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20) NOT NULL DEFAULT 'Nam'");
-            st.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date VARCHAR(20) NOT NULL DEFAULT '15/05/2015'");
-            st.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS class_name VARCHAR(50) NOT NULL DEFAULT 'Lớp 5A'");
+            st.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20) NOT NULL DEFAULT ''");
+            st.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date VARCHAR(20) NOT NULL DEFAULT ''");
+            st.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS class_name VARCHAR(50) NOT NULL DEFAULT ''");
         } catch (Exception ignored) {
         }
 

@@ -13,7 +13,7 @@ public class UserDto {
     }
 
     public UserDto(int id, String username, String fullName, String role) {
-        this(id, username, fullName, "Nam", "15/05/2015", "Lớp 5A", role);
+        this(id, username, fullName, "", "", "", role);
     }
 
     public UserDto(
@@ -28,9 +28,9 @@ public class UserDto {
         this.id = id;
         this.username = username;
         this.fullName = fullName;
-        this.gender = gender != null ? gender : "Nam";
-        this.birthDate = birthDate != null ? birthDate : "15/05/2015";
-        this.className = className != null ? className : "Lớp 5A";
+        this.gender = gender != null ? gender : "";
+        this.birthDate = birthDate != null ? birthDate : "";
+        this.className = className != null ? className : "";
         this.role = role;
     }
 

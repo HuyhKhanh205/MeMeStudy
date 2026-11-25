@@ -77,24 +77,22 @@ export default function HomeScreen({ navigation }: Props) {
   const activeSeason = seasons.find((s) => s.status === 'ACTIVE') ?? seasons[0];
   const activeRounds = mockRounds.filter((r) => r.seasonId === activeSeason.id);
 
-  // Đồng bộ trạng thái đề giáo viên giao với dữ liệu làm bài thực tế
+  // Đồng bộ trạng thái đề giáo viên giao với dữ liệu làm bài thực tế của user đang đăng nhập
   const syncedAssignments: TeacherAssignment[] = teacherAssignments.map((item) => {
     const foundAttempt = attempts.find(
       (a) => a.roundId === item.roundId && a.examId === item.examId
     );
-    if (foundAttempt) {
-      return {
-        ...item,
-        isCompleted: true,
-        score: foundAttempt.score,
-      };
-    }
-    return item;
+    return {
+      ...item,
+      isCompleted: Boolean(foundAttempt),
+      score: foundAttempt?.score,
+    };
   });
 
-  // Tính tiến độ học tập động theo số bài đã làm trong đợt hiện tại
+  // Tính tiến độ học tập động theo đúng số bài user hiện tại đã làm trong đợt đang mở (3 vòng x 3 bài = 9 bài)
   const activeCompletedExams = attempts.filter((a) => a.seasonId === activeSeason.id).length;
-  const completedLessonsCount = Math.max(learningProgress.completed, activeCompletedExams);
+  const completedLessonsCount = activeCompletedExams;
+  const totalLessonsCount = activeRounds.length * 3 || 9;
 
   // Xử lý khi bấm vào một vòng thi
   const handleSelectRound = (round: SeasonRound) => {
@@ -258,7 +256,7 @@ export default function HomeScreen({ navigation }: Props) {
         <Animated.View entering={listEntering(5)}>
           <LearningProgress
             completed={completedLessonsCount}
-            total={learningProgress.total}
+            total={totalLessonsCount}
             quote={learningProgress.quote}
           />
         </Animated.View>

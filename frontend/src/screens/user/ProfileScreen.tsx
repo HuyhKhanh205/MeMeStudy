@@ -54,10 +54,10 @@ export default function ProfileScreen({ navigation }: Props) {
 
   // State cho Modal Chỉnh sửa thông tin cá nhân (Họ tên, giới tính, ngày sinh, lớp học)
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editFullName, setEditFullName] = useState(user?.fullName ?? 'Nguyễn Văn An');
-  const [editGender, setEditGender] = useState(user?.gender ?? 'Nam');
-  const [editBirthDate, setEditBirthDate] = useState(user?.birthDate ?? '15/05/2015');
-  const [editClassName, setEditClassName] = useState(user?.className ?? 'Lớp 5A');
+  const [editFullName, setEditFullName] = useState(user?.fullName ?? '');
+  const [editGender, setEditGender] = useState(user?.gender ?? '');
+  const [editBirthDate, setEditBirthDate] = useState(user?.birthDate ?? '');
+  const [editClassName, setEditClassName] = useState(user?.className ?? '');
   const [editError, setEditError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -70,10 +70,10 @@ export default function ProfileScreen({ navigation }: Props) {
   const [savingPwd, setSavingPwd] = useState(false);
 
   const handleOpenEditModal = () => {
-    setEditFullName(user?.fullName ?? 'Nguyễn Văn An');
-    setEditGender(user?.gender ?? 'Nam');
-    setEditBirthDate(user?.birthDate ?? '15/05/2015');
-    setEditClassName(user?.className ?? 'Lớp 5A');
+    setEditFullName(user?.fullName ?? '');
+    setEditGender(user?.gender ?? '');
+    setEditBirthDate(user?.birthDate ?? '');
+    setEditClassName(user?.className ?? '');
     setEditError(null);
     setEditModalVisible(true);
   };
@@ -83,21 +83,13 @@ export default function ProfileScreen({ navigation }: Props) {
       setEditError('Họ và tên không được để trống.');
       return;
     }
-    if (!editBirthDate.trim()) {
-      setEditError('Vui lòng nhập ngày tháng năm sinh (ví dụ: 15/05/2015).');
-      return;
-    }
-    if (!editClassName.trim()) {
-      setEditError('Vui lòng nhập lớp học (ví dụ: Lớp 5A).');
-      return;
-    }
 
     setSavingProfile(true);
     setEditError(null);
     try {
       await updateProfile({
         fullName: editFullName.trim(),
-        gender: editGender,
+        gender: editGender.trim(),
         birthDate: editBirthDate.trim(),
         className: editClassName.trim(),
       });
@@ -249,7 +241,7 @@ export default function ProfileScreen({ navigation }: Props) {
               <Ionicons name="person-circle-outline" size={18} color="#2563eb" />
               <Text style={styles.infoLabel}>Họ và tên</Text>
             </View>
-            <Text style={styles.infoValue}>{user?.fullName ?? 'Nguyễn Văn An'}</Text>
+            <Text style={styles.infoValue}>{user?.fullName || '—'}</Text>
           </View>
 
           <View style={styles.infoRow}>
@@ -257,7 +249,9 @@ export default function ProfileScreen({ navigation }: Props) {
               <Ionicons name="male-female-outline" size={18} color="#8b5cf6" />
               <Text style={styles.infoLabel}>Giới tính</Text>
             </View>
-            <Text style={styles.infoValue}>{user?.gender ?? 'Nam'}</Text>
+            <Text style={[styles.infoValue, !user?.gender && styles.infoValueEmpty]}>
+              {user?.gender || '—'}
+            </Text>
           </View>
 
           <View style={styles.infoRow}>
@@ -265,7 +259,9 @@ export default function ProfileScreen({ navigation }: Props) {
               <Ionicons name="calendar-outline" size={18} color="#f97316" />
               <Text style={styles.infoLabel}>Ngày sinh</Text>
             </View>
-            <Text style={styles.infoValue}>{user?.birthDate ?? '15/05/2015'}</Text>
+            <Text style={[styles.infoValue, !user?.birthDate && styles.infoValueEmpty]}>
+              {user?.birthDate || '—'}
+            </Text>
           </View>
 
           <View style={styles.infoRow}>
@@ -273,7 +269,9 @@ export default function ProfileScreen({ navigation }: Props) {
               <Ionicons name="school-outline" size={18} color="#0284c7" />
               <Text style={styles.infoLabel}>Lớp học</Text>
             </View>
-            <Text style={styles.infoValue}>{user?.className ?? 'Lớp 5A'}</Text>
+            <Text style={[styles.infoValue, !user?.className && styles.infoValueEmpty]}>
+              {user?.className || '—'}
+            </Text>
           </View>
 
           <View style={styles.infoRow}>
@@ -740,6 +738,10 @@ const styles = StyleSheet.create({
     fontFamily: gameFonts.bodyExtraBold,
     fontSize: 13,
     color: '#1e293b',
+  },
+  infoValueEmpty: {
+    color: '#94a3b8',
+    fontFamily: gameFonts.bodyBold,
   },
   infoValueHighlight: {
     color: '#16a34a',
