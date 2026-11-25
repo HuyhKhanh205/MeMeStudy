@@ -3,6 +3,7 @@ package com.memestudy.backend.model;
 public class RoundDto {
     private int id;
     private String seasonId;
+    private Integer prerequisiteRoundId;
     private int order;
     private String roundNumber;
     private String status; // "COMPLETED" | "IN_PROGRESS" | "LOCKED"
@@ -27,8 +28,25 @@ public class RoundDto {
             int questionCount,
             boolean isOpen
     ) {
+        this(id, seasonId, order > 1 ? id - 1 : null, order, roundNumber, status, title, description, durationMinutes, questionCount, isOpen);
+    }
+
+    public RoundDto(
+            int id,
+            String seasonId,
+            Integer prerequisiteRoundId,
+            int order,
+            String roundNumber,
+            String status,
+            String title,
+            String description,
+            int durationMinutes,
+            int questionCount,
+            boolean isOpen
+    ) {
         this.id = id;
         this.seasonId = seasonId;
+        this.prerequisiteRoundId = prerequisiteRoundId;
         this.order = order;
         this.roundNumber = roundNumber;
         this.status = status;
@@ -37,6 +55,14 @@ public class RoundDto {
         this.durationMinutes = durationMinutes;
         this.questionCount = questionCount;
         this.isOpen = isOpen;
+    }
+
+    public Integer getPrerequisiteRoundId() {
+        return prerequisiteRoundId;
+    }
+
+    public void setPrerequisiteRoundId(Integer prerequisiteRoundId) {
+        this.prerequisiteRoundId = prerequisiteRoundId;
     }
 
     public int getId() {

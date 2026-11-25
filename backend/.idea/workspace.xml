@@ -11,14 +11,10 @@
   <component name="ChangeListManager">
     <list default="true" id="ba521865-cefb-4ae7-b636-129d23d5a310" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/AttemptDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/AttemptDto.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/AttemptResultDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/AttemptResultDto.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/QuestionDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/QuestionDto.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/SubmitRequestDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/SubmitRequestDto.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/resource/AttemptResource.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/resource/AttemptResource.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/db/DatabaseManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/db/DatabaseManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/RoundDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/RoundDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/UserDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/model/UserDto.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/resource/AuthResource.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/resource/AuthResource.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/resource/RoundResource.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/resource/RoundResource.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/store/InMemoryStore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/memestudy/backend/store/InMemoryStore.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -162,7 +158,7 @@
       <updated>1794066891391</updated>
       <workItem from="1794066892491" duration="88000" />
       <workItem from="1794564802573" duration="1186000" />
-      <workItem from="1795588449513" duration="2808000" />
+      <workItem from="1795588449513" duration="4000000" />
     </task>
     <servers />
   </component>
