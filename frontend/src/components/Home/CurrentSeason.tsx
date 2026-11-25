@@ -54,7 +54,7 @@ export default function CurrentSeason({
         {rounds.map((round) => {
           const progress = getRoundProgress(round.id, attempts);
           const isLocked = round.status === 'LOCKED';
-          const isCompleted = !isLocked && (round.status === 'COMPLETED' || progress.isCompleted);
+          const isCompleted = !isLocked && progress.isCompleted;
           const isInProgress = !isLocked && !isCompleted;
           const score = isCompleted ? getRoundScore(round.id, attempts) : null;
 
@@ -107,13 +107,17 @@ export default function CurrentSeason({
                   {isInProgress && (
                     <View style={styles.badgeInProgress}>
                       <Ionicons name="flash" size={13} color="#f97316" />
-                      <Text style={styles.badgeInProgressText}>Đang thi</Text>
+                      <Text style={styles.badgeInProgressText}>
+                        Đang thi · {progress.completedCount}/{progress.total} bài
+                      </Text>
                     </View>
                   )}
 
                   {isLocked && (
                     <View style={styles.badgeLocked}>
-                      <Text style={styles.badgeLockedText}>Chưa mở</Text>
+                      <Text style={styles.badgeLockedText}>
+                        Chưa mở · Hoàn thành vòng trước để mở
+                      </Text>
                     </View>
                   )}
                 </View>
