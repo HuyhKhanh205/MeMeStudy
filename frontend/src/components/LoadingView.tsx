@@ -23,7 +23,6 @@ export default function LoadingView({ message }: { message?: string }) {
         <Text
           fontSize={typography.body.fontSize}
           fontWeight={typography.body.fontWeight}
-          lineHeight={typography.body.lineHeight}
           color={colors.textMuted}
         >
           {message}

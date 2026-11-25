@@ -34,7 +34,6 @@ export default function QuestionListScreen() {
           <Text
             fontSize={typography.body.fontSize}
             fontWeight={typography.body.fontWeight}
-            lineHeight={typography.body.lineHeight}
             color={colors.textMuted}
           >
             Chưa có câu hỏi.
@@ -51,7 +50,6 @@ export default function QuestionListScreen() {
               <Text
                 fontSize={typography.label.fontSize}
                 fontWeight={typography.label.fontWeight}
-                lineHeight={typography.label.lineHeight}
                 color={colors.text}
               >
                 {index + 1}. {item.content}
@@ -63,7 +61,6 @@ export default function QuestionListScreen() {
                     key={c.id}
                     fontSize={typography.body.fontSize}
                     fontWeight={isCorrect ? '600' : typography.body.fontWeight}
-                    lineHeight={typography.body.lineHeight}
                     color={isCorrect ? colors.success : colors.textMuted}
                   >
                     {String.fromCharCode(65 + i)}. {c.content}

@@ -19,7 +19,6 @@ export default function ErrorView({ message, onRetry }: Props) {
       <Text
         fontSize={typography.heading.fontSize}
         fontWeight={typography.heading.fontWeight}
-        lineHeight={typography.heading.lineHeight}
         color={colors.text}
         textAlign="center"
       >
@@ -28,7 +27,6 @@ export default function ErrorView({ message, onRetry }: Props) {
       <Text
         fontSize={typography.body.fontSize}
         fontWeight={typography.body.fontWeight}
-        lineHeight={typography.body.lineHeight}
         color={colors.danger}
         textAlign="center"
       >

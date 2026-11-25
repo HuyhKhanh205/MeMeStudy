@@ -34,7 +34,6 @@ export default function DashboardScreen({ navigation }: Props) {
       <Text
         fontSize={typography.heading.fontSize}
         fontWeight={typography.heading.fontWeight}
-        lineHeight={typography.heading.lineHeight}
         color={colors.text}
       >
         Xin chào, {user?.fullName}
@@ -47,7 +46,6 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text
               fontSize={typography.title.fontSize}
               fontWeight={typography.title.fontWeight}
-              lineHeight={typography.title.lineHeight}
               color={colors.primary}
             >
               {stats?.questions ?? '–'}
@@ -55,7 +53,6 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text
               fontSize={typography.caption.fontSize}
               fontWeight={typography.caption.fontWeight}
-              lineHeight={typography.caption.lineHeight}
               color={colors.textMuted}
             >
               Câu hỏi
@@ -66,7 +63,6 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text
               fontSize={typography.title.fontSize}
               fontWeight={typography.title.fontWeight}
-              lineHeight={typography.title.lineHeight}
               color={colors.primary}
             >
               {stats?.rounds ?? '–'}
@@ -74,7 +70,6 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text
               fontSize={typography.caption.fontSize}
               fontWeight={typography.caption.fontWeight}
-              lineHeight={typography.caption.lineHeight}
               color={colors.textMuted}
             >
               Vòng thi
@@ -85,7 +80,6 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text
               fontSize={typography.title.fontSize}
               fontWeight={typography.title.fontWeight}
-              lineHeight={typography.title.lineHeight}
               color={colors.primary}
             >
               {stats?.openRounds ?? '–'}
@@ -93,7 +87,6 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text
               fontSize={typography.caption.fontSize}
               fontWeight={typography.caption.fontWeight}
-              lineHeight={typography.caption.lineHeight}
               color={colors.textMuted}
             >
               Đang mở
@@ -105,7 +98,6 @@ export default function DashboardScreen({ navigation }: Props) {
         <Text
           fontSize={typography.body.fontSize}
           fontWeight={typography.body.fontWeight}
-          lineHeight={typography.body.lineHeight}
           color={colors.danger}
         >
           {error}
