@@ -35,7 +35,6 @@ export default function ExamListScreen() {
           <Text
             fontSize={typography.body.fontSize}
             fontWeight={typography.body.fontWeight}
-            lineHeight={typography.body.lineHeight}
             color={colors.textMuted}
           >
             Chưa có đề thi.
@@ -52,7 +51,6 @@ export default function ExamListScreen() {
               <Text
                 fontSize={typography.heading.fontSize}
                 fontWeight={typography.heading.fontWeight}
-                lineHeight={typography.heading.lineHeight}
                 color={colors.text}
               >
                 {item.title}
@@ -60,7 +58,6 @@ export default function ExamListScreen() {
               <Text
                 fontSize={typography.body.fontSize}
                 fontWeight={typography.body.fontWeight}
-                lineHeight={typography.body.lineHeight}
                 color={colors.textMuted}
               >
                 {item.questionCount} câu · {item.durationMinutes} phút ·{' '}

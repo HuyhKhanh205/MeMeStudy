@@ -55,7 +55,6 @@ export default function LoginScreen({ navigation }: Props) {
             <Text
               fontSize={typography.title.fontSize}
               fontWeight={typography.title.fontWeight}
-              lineHeight={typography.title.lineHeight}
               color={colors.primary}
               textAlign="center"
             >
@@ -68,7 +67,6 @@ export default function LoginScreen({ navigation }: Props) {
           <Text
             fontSize={typography.body.fontSize}
             fontWeight={typography.body.fontWeight}
-            lineHeight={typography.body.lineHeight}
             color={colors.textMuted}
             textAlign="center"
           >
@@ -101,7 +99,6 @@ export default function LoginScreen({ navigation }: Props) {
           <Text
             fontSize={typography.body.fontSize}
             fontWeight={typography.body.fontWeight}
-            lineHeight={typography.body.lineHeight}
             color={colors.danger}
           >
             {error}
@@ -119,7 +116,6 @@ export default function LoginScreen({ navigation }: Props) {
           <Text
             fontSize={typography.caption.fontSize}
             fontWeight={typography.caption.fontWeight}
-            lineHeight={typography.caption.lineHeight}
             color={colors.textMuted}
             textAlign="center"
           >

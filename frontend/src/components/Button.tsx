@@ -62,7 +62,6 @@ export default function Button({
             color={textColor}
             fontSize={16}
             fontWeight={typography.label.fontWeight}
-            lineHeight={typography.label.lineHeight}
           >
             {title}
           </Text>

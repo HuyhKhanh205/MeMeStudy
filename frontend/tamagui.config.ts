@@ -135,6 +135,7 @@ export const tamaguiConfig = createTamagui({
     ...defaultConfig.settings,
     onlyAllowShorthands: false,
     allowedStyleValues: false,
+    styleCompat: 'react-native',
   },
 });
 

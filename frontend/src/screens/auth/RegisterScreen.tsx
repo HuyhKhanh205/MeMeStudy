@@ -92,7 +92,6 @@ export default function RegisterScreen({ navigation }: Props) {
           <Text
             fontSize={typography.body.fontSize}
             fontWeight={typography.body.fontWeight}
-            lineHeight={typography.body.lineHeight}
             color={colors.danger}
           >
             {submitError}

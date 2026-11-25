@@ -22,7 +22,6 @@ export default function TextField({ label, error, style, onFocus, onBlur, ...res
       <Text
         fontSize={typography.label.fontSize}
         fontWeight={typography.label.fontWeight}
-        lineHeight={typography.label.lineHeight}
         color={colors.text}
       >
         {label}
@@ -45,7 +44,6 @@ export default function TextField({ label, error, style, onFocus, onBlur, ...res
           {
             fontSize: typography.body.fontSize,
             fontWeight: typography.body.fontWeight,
-            lineHeight: typography.body.lineHeight,
             minHeight: 48,
             paddingHorizontal: spacing.md,
             borderRadius: radius.md,
@@ -61,7 +59,6 @@ export default function TextField({ label, error, style, onFocus, onBlur, ...res
         <Text
           fontSize={typography.caption.fontSize}
           fontWeight={typography.caption.fontWeight}
-          lineHeight={typography.caption.lineHeight}
           color={colors.danger}
         >
           {error}
