@@ -23,12 +23,15 @@ DROP TABLE IF EXISTS seasons;
 DROP TABLE IF EXISTS users;
 SET FOREIGN_KEY_CHECKS = 1;
 
--- 1. Bảng người dùng (Học sinh, Giáo viên, Quản trị viên)
+-- 1. Bảng người dùng (Học sinh, Giáo viên, Quản trị viên — Tên đầy đủ, giới tính, ngày sinh, lớp)
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   full_name VARCHAR(120) NOT NULL,
+  gender VARCHAR(20) NOT NULL DEFAULT 'Nam',
+  birth_date VARCHAR(20) NOT NULL DEFAULT '15/05/2015',
+  class_name VARCHAR(50) NOT NULL DEFAULT 'Lớp 5A',
   role VARCHAR(20) NOT NULL DEFAULT 'USER',
   coins INT NOT NULL DEFAULT 120,
   streak_days INT NOT NULL DEFAULT 5,
@@ -47,10 +50,11 @@ CREATE TABLE seasons (
   description VARCHAR(500)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Bảng vòng thi (Rounds)
+-- 3. Bảng vòng thi (Rounds — liên kết với seasons và liên kết vòng trước qua prerequisite_round_id)
 CREATE TABLE rounds (
   id INT PRIMARY KEY,
   season_id VARCHAR(20) NOT NULL,
+  prerequisite_round_id INT DEFAULT NULL,
   round_order INT NOT NULL,
   round_number VARCHAR(10) NOT NULL,
   title VARCHAR(180) NOT NULL,
@@ -59,34 +63,38 @@ CREATE TABLE rounds (
   question_count INT NOT NULL DEFAULT 30,
   is_open BOOLEAN NOT NULL DEFAULT TRUE,
   status VARCHAR(20) NOT NULL DEFAULT 'IN_PROGRESS',
-  CONSTRAINT fk_rounds_season FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE
+  CONSTRAINT fk_rounds_season FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rounds_prerequisite FOREIGN KEY (prerequisite_round_id) REFERENCES rounds(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4. Bảng bài thi thuộc vòng (Exams — mỗi vòng 3 bài, mỗi bài 10 câu)
+-- 4. Bảng bài thi thuộc vòng (Exams — liên kết chặt với rounds, mỗi vòng 3 bài, mỗi bài 10 câu)
 CREATE TABLE exams (
   id INT PRIMARY KEY,
   round_id INT NOT NULL,
+  prerequisite_exam_id INT DEFAULT NULL,
   exam_order INT NOT NULL,
   title VARCHAR(180) NOT NULL,
   question_count INT NOT NULL DEFAULT 10,
   duration_minutes INT NOT NULL DEFAULT 15,
-  CONSTRAINT fk_exams_round FOREIGN KEY (round_id) REFERENCES rounds(id) ON DELETE CASCADE
+  CONSTRAINT fk_exams_round FOREIGN KEY (round_id) REFERENCES rounds(id) ON DELETE CASCADE,
+  CONSTRAINT fk_exams_prerequisite FOREIGN KEY (prerequisite_exam_id) REFERENCES exams(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5. Bảng câu hỏi (Questions — TEXT, LISTENING, IMAGE)
+-- 5. Bảng câu hỏi (Questions — liên kết khoá ngoại tới exams)
 CREATE TABLE questions (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  exam_id INT NOT NULL DEFAULT 201,
+  exam_id INT NOT NULL,
   question_type VARCHAR(20) NOT NULL DEFAULT 'TEXT',
   content VARCHAR(1000) NOT NULL,
   correct_index INT NOT NULL DEFAULT 0,
   correct_choice_id INT NOT NULL,
   audio_url VARCHAR(255) DEFAULT NULL,
   image_url VARCHAR(100) DEFAULT NULL,
-  explanation VARCHAR(1000) DEFAULT NULL
+  explanation VARCHAR(1000) DEFAULT NULL,
+  CONSTRAINT fk_questions_exam FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6. Bảng đáp án của câu hỏi (Question Choices)
+-- 6. Bảng đáp án của câu hỏi (Question Choices — liên kết khoá ngoại tới questions)
 CREATE TABLE question_choices (
   id INT PRIMARY KEY,
   question_id INT NOT NULL,
@@ -95,9 +103,10 @@ CREATE TABLE question_choices (
   CONSTRAINT fk_choices_question FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. Bảng đề kiểm tra giáo viên giao (Teacher Assignments)
+-- 7. Bảng đề kiểm tra giáo viên giao (Teacher Assignments — liên kết tới users, rounds, exams)
 CREATE TABLE teacher_assignments (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  teacher_id INT NOT NULL DEFAULT 3,
   title VARCHAR(200) NOT NULL,
   question_count INT NOT NULL DEFAULT 10,
   duration_minutes INT NOT NULL DEFAULT 15,
@@ -105,18 +114,21 @@ CREATE TABLE teacher_assignments (
   is_completed BOOLEAN NOT NULL DEFAULT FALSE,
   score INT DEFAULT NULL,
   exam_id INT NOT NULL,
-  round_id INT NOT NULL
+  round_id INT NOT NULL,
+  CONSTRAINT fk_assignments_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_assignments_round FOREIGN KEY (round_id) REFERENCES rounds(id) ON DELETE CASCADE,
+  CONSTRAINT fk_assignments_exam FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8. Bảng lượt làm bài thi của học sinh (Attempts)
+-- 8. Bảng lượt làm bài thi của học sinh (Attempts — liên kết khoá ngoại tới users, seasons, rounds, exams)
 CREATE TABLE attempts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
-  season_id VARCHAR(20) NOT NULL DEFAULT '2026-2027',
+  season_id VARCHAR(20) NOT NULL,
   round_id INT NOT NULL,
-  exam_id INT NOT NULL DEFAULT 201,
+  exam_id INT NOT NULL,
   round_title VARCHAR(180) NOT NULL,
-  exam_title VARCHAR(180) NOT NULL DEFAULT 'Bài 1',
+  exam_title VARCHAR(180) NOT NULL,
   exam_order INT NOT NULL DEFAULT 1,
   status VARCHAR(20) NOT NULL DEFAULT 'SUBMITTED',
   mode VARCHAR(20) NOT NULL DEFAULT 'exam',
@@ -127,17 +139,22 @@ CREATE TABLE attempts (
   started_at VARCHAR(40) DEFAULT NULL,
   expires_at VARCHAR(40) DEFAULT NULL,
   submitted_at VARCHAR(40) NOT NULL,
-  CONSTRAINT fk_attempts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  CONSTRAINT fk_attempts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attempts_season FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attempts_round FOREIGN KEY (round_id) REFERENCES rounds(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attempts_exam FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 9. Bảng chi tiết từng câu trả lời trong lượt làm bài (Attempt Answers)
+-- 9. Bảng chi tiết từng câu trả lời trong lượt làm bài (Attempt Answers — liên kết tới attempts, questions, question_choices)
 CREATE TABLE attempt_answers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   attempt_id INT NOT NULL,
   question_id INT NOT NULL,
   choice_id INT DEFAULT NULL,
   is_correct BOOLEAN NOT NULL DEFAULT FALSE,
-  CONSTRAINT fk_attempt_answers_attempt FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE
+  CONSTRAINT fk_attempt_answers_attempt FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attempt_answers_question FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attempt_answers_choice FOREIGN KEY (choice_id) REFERENCES question_choices(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================================
@@ -145,31 +162,46 @@ CREATE TABLE attempt_answers (
 -- Mật khẩu mặc định của cả 3 tài khoản: 123456
 -- =====================================================================
 
-INSERT INTO users (id, username, password_hash, full_name, role, coins, streak_days) VALUES
-(1, 'user', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Nguyễn Văn A', 'USER', 120, 5),
-(2, 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Quản trị viên', 'ADMIN', 0, 0),
-(3, 'teacher', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Cô Lan', 'TEACHER', 0, 0);
+-- 1. Người dùng (Tên đầy đủ, giới tính, ngày sinh, lớp)
+INSERT INTO users (id, username, password_hash, full_name, gender, birth_date, class_name, role, coins, streak_days) VALUES
+(1, 'user', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Nguyễn Văn An', 'Nam', '15/05/2015', 'Lớp 5A', 'USER', 120, 5),
+(2, 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Trần Minh Quân', 'Nam', '20/10/1995', 'Quản trị hệ thống', 'ADMIN', 0, 0),
+(3, 'teacher', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Nguyễn Thị Hương Lan', 'Nữ', '12/08/1992', 'Giáo viên Tiếng Anh', 'TEACHER', 0, 0);
 
+-- 2. Đợt thi (Điểm cao nhất khớp chính xác với tổng điểm vòng trong bảng attempts)
+-- Đợt 2026-2027: Vòng 01 đạt 90 + 100 + 80 = 270/300 điểm
+-- Đợt 2025-2026: Vòng 01 đạt 100 + 100 + 90 = 290/300 điểm
 INSERT INTO seasons (id, name, status, start_date, end_date, total_rounds_participated, highest_score, description) VALUES
 ('2026-2027', 'Đợt thi 2026–2027', 'ACTIVE', '01/09/2026', '31/05/2027', 1, 270, 'Hành trình khám phá tiếng Anh lớp học hoạt hình cùng Cú MeMe!'),
-('2025-2026', 'Đợt thi 2025–2026', 'ARCHIVED', '01/09/2025', '31/05/2026', 15, 295, 'Đợt thi đã kết thúc. Toàn bộ kết quả đã được lưu trữ.');
+('2025-2026', 'Đợt thi 2025–2026', 'ARCHIVED', '01/09/2025', '31/05/2026', 1, 290, 'Đợt thi đã kết thúc. Toàn bộ kết quả đã được lưu trữ.');
 
-INSERT INTO rounds (id, season_id, round_order, round_number, title, description, duration_minutes, question_count, is_open, status) VALUES
-(1, '2026-2027', 1, '01', 'Vòng 01 — Khởi động', 'Khởi động năm học mới với từ vựng đồ dùng học tập và chào hỏi.', 15, 30, TRUE, 'COMPLETED'),
-(2, '2026-2027', 2, '02', 'Vòng 02 — Khám phá', 'Khám phá thế giới sở thích, gia đình và trường lớp qua bài học vui nhộn.', 15, 30, TRUE, 'IN_PROGRESS'),
-(3, '2026-2027', 3, '03', 'Vòng 03 — Chinh phục', 'Thử thách nâng cao các thì cơ bản và kỹ năng nghe hội thoại thực tế.', 15, 30, FALSE, 'LOCKED');
+-- 3. Vòng thi (Các vòng liên kết dây chuyền qua prerequisite_round_id: Vòng 1 -> Vòng 2 -> Vòng 3)
+INSERT INTO rounds (id, season_id, prerequisite_round_id, round_order, round_number, title, description, duration_minutes, question_count, is_open, status) VALUES
+(1, '2026-2027', NULL, 1, '01', 'Vòng 01 — Khởi động', 'Khởi động năm học mới với từ vựng đồ dùng học tập và chào hỏi.', 15, 30, TRUE, 'COMPLETED'),
+(2, '2026-2027', 1,    2, '02', 'Vòng 02 — Khám phá', 'Khám phá thế giới sở thích, gia đình và trường lớp qua bài học vui nhộn.', 15, 30, TRUE, 'IN_PROGRESS'),
+(3, '2026-2027', 2,    3, '03', 'Vòng 03 — Chinh phục', 'Thử thách nâng cao các thì cơ bản và kỹ năng nghe hội thoại thực tế.', 15, 30, FALSE, 'LOCKED'),
+(4, '2025-2026', NULL, 1, '01', 'Vòng 01 — Niên khóa 2025–2026', 'Tổng ôn tập từ vựng, ngữ pháp và kỹ năng nghe niên khóa 2025–2026.', 15, 30, FALSE, 'COMPLETED');
 
-INSERT INTO exams (id, round_id, exam_order, title, question_count, duration_minutes) VALUES
-(101, 1, 1, 'Bài 1: School Things', 10, 15),
-(102, 1, 2, 'Bài 2: Daily Greetings', 10, 15),
-(103, 1, 3, 'Bài 3: Classroom Rules', 10, 15),
-(201, 2, 1, 'Bài 1: Hobbies & Sports', 10, 15),
-(202, 2, 2, 'Bài 2: Family & Friends', 10, 15),
-(203, 2, 3, 'Bài 3: Animal World & Nature', 10, 15),
-(301, 3, 1, 'Bài 1: Around the Town', 10, 15),
-(302, 3, 2, 'Bài 2: Future Dreams', 10, 15),
-(303, 3, 3, 'Bài 3: Final Master Challenge', 10, 15);
+-- 4. Bài thi trong từng vòng (Các bài trong mỗi vòng liên kết dây chuyền qua prerequisite_exam_id: Bài 1 -> Bài 2 -> Bài 3)
+INSERT INTO exams (id, round_id, prerequisite_exam_id, exam_order, title, question_count, duration_minutes) VALUES
+-- Vòng 01 (Đợt 2026-2027)
+(101, 1, NULL, 1, 'Bài 1: School Things', 10, 15),
+(102, 1, 101,  2, 'Bài 2: Daily Greetings', 10, 15),
+(103, 1, 102,  3, 'Bài 3: Classroom Rules', 10, 15),
+-- Vòng 02 (Đợt 2026-2027)
+(201, 2, NULL, 1, 'Bài 1: Hobbies & Sports', 10, 15),
+(202, 2, 201,  2, 'Bài 2: Family & Friends', 10, 15),
+(203, 2, 202,  3, 'Bài 3: Animal World & Nature', 10, 15),
+-- Vòng 03 (Đợt 2026-2027)
+(301, 3, NULL, 1, 'Bài 1: Around the Town', 10, 15),
+(302, 3, 301,  2, 'Bài 2: Future Dreams', 10, 15),
+(303, 3, 302,  3, 'Bài 3: Final Master Challenge', 10, 15),
+-- Vòng 01 Lưu trữ (Đợt 2025-2026)
+(401, 4, NULL, 1, 'Bài 1: Tổng ôn tập Từ vựng', 10, 15),
+(402, 4, 401,  2, 'Bài 2: Kỹ năng Ngữ pháp & Đọc hiểu', 10, 15),
+(403, 4, 402,  3, 'Bài 3: Đấu trường Nghe & Phản xạ', 10, 15);
 
+-- 5. Câu hỏi (Questions)
 -- Câu hỏi Bài 1 (exam_id = 201): Hobbies & Sports
 INSERT INTO questions (id, exam_id, question_type, content, correct_index, correct_choice_id, audio_url, image_url, explanation) VALUES
 (2001, 201, 'TEXT', 'Chọn từ thích hợp điền vào chỗ trống: "I like _____ football with my friends every Sunday."', 1, 20012, NULL, NULL, 'Sau động từ "like" thường dùng danh động từ V-ing khi nói về sở thích (like playing football).'),
@@ -209,7 +241,7 @@ INSERT INTO questions (id, exam_id, question_type, content, correct_index, corre
 (2029, 203, 'TEXT', '"Whales live in the _____."', 1, 20292, NULL, NULL, 'Cá voi (whales) sống ở đại dương (ocean).'),
 (2030, 203, 'LISTENING', 'Nghe câu hỏi: "Why should we protect wild animals?"', 0, 20301, 'listening_protect_nature.mp3', NULL, 'Đoạn văn kết luận: "Protecting wildlife keeps our mother nature healthy and balanced."');
 
--- Đáp án của 30 câu hỏi
+-- 6. Đáp án của 30 câu hỏi
 INSERT INTO question_choices (id, question_id, choice_index, content) VALUES
 (20011, 2001, 0, 'play'), (20012, 2001, 1, 'playing'), (20013, 2001, 2, 'played'), (20014, 2001, 3, 'plays'),
 (20021, 2002, 0, 'Reading books'), (20022, 2002, 1, 'Playing piano'), (20023, 2002, 2, 'Swimming'), (20024, 2002, 3, 'Riding a bike'),
@@ -242,16 +274,42 @@ INSERT INTO question_choices (id, question_id, choice_index, content) VALUES
 (20291, 2029, 0, 'forest'), (20292, 2029, 1, 'ocean'), (20293, 2029, 2, 'desert'), (20294, 2029, 3, 'cave'),
 (20301, 2030, 0, 'Because they keep nature in balance'), (20302, 2030, 1, 'Because they are noisy'), (20303, 2030, 2, 'Because they live in houses'), (20304, 2030, 3, 'Because they eat grass');
 
--- Đề kiểm tra giáo viên giao
-INSERT INTO teacher_assignments (id, title, question_count, duration_minutes, deadline, is_completed, score, exam_id, round_id) VALUES
-(1, 'Kiểm tra Unit 5 — My hobbies', 10, 15, '10/11', FALSE, NULL, 201, 2),
-(2, 'Listening Practice — Grade 5', 10, 15, '05/11', TRUE, 90, 101, 1);
+-- 7. Đề kiểm tra giáo viên Nguyễn Thị Hương Lan (teacher_id = 3) giao
+-- Đề số 2 (exam_id = 101, round_id = 1) có điểm 90/100 khớp chính xác với attempt 901 của học sinh Nguyễn Văn An
+INSERT INTO teacher_assignments (id, teacher_id, title, question_count, duration_minutes, deadline, is_completed, score, exam_id, round_id) VALUES
+(1, 3, 'Kiểm tra Unit 5 — My hobbies', 10, 15, '10/11', FALSE, NULL, 201, 2),
+(2, 3, 'Listening Practice — Grade 5', 10, 15, '05/11', TRUE, 90, 101, 1);
 
--- Lịch sử làm bài của học sinh user (id = 1)
+-- 8. Lịch sử làm bài của học sinh Nguyễn Văn An (user_id = 1)
+-- Tất cả điểm số đều theo đúng thang 100 (correct_count * 10):
+-- + Vòng 01 (Đợt 2026-2027): Bài 1 = 90đ, Bài 2 = 100đ, Bài 3 = 80đ -> Tổng điểm vòng = 270/300đ
+-- + Vòng 01 (Đợt 2025-2026): Bài 1 = 100đ, Bài 2 = 100đ, Bài 3 = 90đ -> Tổng điểm vòng = 290/300đ
+-- + Tổng số vòng đã thi: 2 vòng | Điểm trung bình vòng: (270 + 290) / 2 = 280.0 / 300 điểm
 INSERT INTO attempts (id, user_id, season_id, round_id, exam_id, round_title, exam_title, exam_order, status, mode, score, correct_count, total_questions, duration_seconds, submitted_at) VALUES
 (901, 1, '2026-2027', 1, 101, 'Vòng 01 — Khởi động', 'Bài 1: School Things', 1, 'SUBMITTED', 'exam', 90, 9, 10, 420, '2026-10-15T08:30:00Z'),
 (902, 1, '2026-2027', 1, 102, 'Vòng 01 — Khởi động', 'Bài 2: Daily Greetings', 2, 'SUBMITTED', 'exam', 100, 10, 10, 380, '2026-10-16T14:15:00Z'),
 (903, 1, '2026-2027', 1, 103, 'Vòng 01 — Khởi động', 'Bài 3: Classroom Rules', 3, 'SUBMITTED', 'exam', 80, 8, 10, 510, '2026-10-18T10:00:00Z'),
-(843, 1, '2025-2026', 65, 543, 'Vòng 15 — Niên khóa 2025–2026', 'Bài 1: Tổng ôn tập 15', 1, 'SUBMITTED', 'exam', 98, 9, 10, 400, '2026-03-16T09:00:00Z'),
-(844, 1, '2025-2026', 65, 544, 'Vòng 15 — Niên khóa 2025–2026', 'Bài 2: Kỹ năng nâng cao 15', 2, 'SUBMITTED', 'exam', 100, 10, 10, 430, '2026-03-17T10:00:00Z'),
-(845, 1, '2025-2026', 65, 545, 'Vòng 15 — Niên khóa 2025–2026', 'Bài 3: Đấu trường về đích 15', 3, 'SUBMITTED', 'exam', 97, 9, 10, 460, '2026-03-18T11:00:00Z');
+(801, 1, '2025-2026', 4, 401, 'Vòng 01 — Niên khóa 2025–2026', 'Bài 1: Tổng ôn tập Từ vựng', 1, 'SUBMITTED', 'exam', 100, 10, 10, 400, '2026-03-16T09:00:00Z'),
+(802, 1, '2025-2026', 4, 402, 'Vòng 01 — Niên khóa 2025–2026', 'Bài 2: Kỹ năng Ngữ pháp & Đọc hiểu', 2, 'SUBMITTED', 'exam', 100, 10, 10, 430, '2026-03-17T10:00:00Z'),
+(803, 1, '2025-2026', 4, 403, 'Vòng 01 — Niên khóa 2025–2026', 'Bài 3: Đấu trường Nghe & Phản xạ', 3, 'SUBMITTED', 'exam', 90, 9, 10, 460, '2026-03-18T11:00:00Z');
+
+-- 9. Chi tiết câu trả lời của các lượt thi (đảm bảo số câu đúng khớp 100% với correct_count và score)
+INSERT INTO attempt_answers (attempt_id, question_id, choice_id, is_correct) VALUES
+-- Attempt 901 (9/10 câu đúng = 90đ)
+(901, 2001, 20012, TRUE), (901, 2002, 20021, TRUE), (901, 2003, 20032, TRUE), (901, 2004, 20042, TRUE), (901, 2005, 20052, TRUE),
+(901, 2006, 20062, TRUE), (901, 2007, 20072, TRUE), (901, 2008, 20081, TRUE), (901, 2009, 20092, TRUE), (901, 2010, 20102, FALSE),
+-- Attempt 902 (10/10 câu đúng = 100đ)
+(902, 2011, 20112, TRUE), (902, 2012, 20122, TRUE), (902, 2013, 20132, TRUE), (902, 2014, 20142, TRUE), (902, 2015, 20151, TRUE),
+(902, 2016, 20162, TRUE), (902, 2017, 20171, TRUE), (902, 2018, 20182, TRUE), (902, 2019, 20192, TRUE), (902, 2020, 20202, TRUE),
+-- Attempt 903 (8/10 câu đúng = 80đ)
+(903, 2021, 20212, TRUE), (903, 2022, 20222, TRUE), (903, 2023, 20233, TRUE), (903, 2024, 20241, TRUE), (903, 2025, 20252, TRUE),
+(903, 2026, 20262, TRUE), (903, 2027, 20271, TRUE), (903, 2028, 20282, TRUE), (903, 2029, 20291, FALSE), (903, 2030, 20302, FALSE),
+-- Attempt 801 (10/10 câu đúng = 100đ)
+(801, 2001, 20012, TRUE), (801, 2002, 20021, TRUE), (801, 2003, 20032, TRUE), (801, 2004, 20042, TRUE), (801, 2005, 20052, TRUE),
+(801, 2006, 20062, TRUE), (801, 2007, 20072, TRUE), (801, 2008, 20081, TRUE), (801, 2009, 20092, TRUE), (801, 2010, 20101, TRUE),
+-- Attempt 802 (10/10 câu đúng = 100đ)
+(802, 2011, 20112, TRUE), (802, 2012, 20122, TRUE), (802, 2013, 20132, TRUE), (802, 2014, 20142, TRUE), (802, 2015, 20151, TRUE),
+(802, 2016, 20162, TRUE), (802, 2017, 20171, TRUE), (802, 2018, 20182, TRUE), (802, 2019, 20192, TRUE), (802, 2020, 20202, TRUE),
+-- Attempt 803 (9/10 câu đúng = 90đ)
+(803, 2021, 20212, TRUE), (803, 2022, 20222, TRUE), (803, 2023, 20233, TRUE), (803, 2024, 20241, TRUE), (803, 2025, 20252, TRUE),
+(803, 2026, 20262, TRUE), (803, 2027, 20271, TRUE), (803, 2028, 20282, TRUE), (803, 2029, 20292, TRUE), (803, 2030, 20302, FALSE);

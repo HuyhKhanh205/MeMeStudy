@@ -30,6 +30,6 @@ Backend Java tự động kết nối tới MariaDB theo thông số mặc đị
 ## 4. Tài khoản có sẵn trong Database
 | Vai trò | Tên đăng nhập | Mật khẩu | Họ và tên |
 | :--- | :--- | :--- | :--- |
-| **Học sinh (`USER`)** | `user` | `123456` | Nguyễn Văn A |
-| **Giáo viên (`TEACHER`)** | `teacher` | `123456` | Cô Lan |
-| **Quản trị (`ADMIN`)** | `admin` | `123456` | Quản trị viên |
+| **Học sinh (`USER`)** | `user` | `123456` | Nguyễn Văn An |
+| **Giáo viên (`TEACHER`)** | `teacher` | `123456` | Nguyễn Thị Hương Lan |
+| **Quản trị (`ADMIN`)** | `admin` | `123456` | Trần Minh Quân |
