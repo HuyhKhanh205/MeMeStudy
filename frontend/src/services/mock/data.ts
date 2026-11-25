@@ -9,9 +9,42 @@ export interface MockAccount {
 
 /** Tài khoản demo khi EXPO_PUBLIC_USE_MOCK=true. */
 export const mockAccounts: MockAccount[] = [
-  { password: '123456', user: { id: 1, username: 'user', fullName: 'Nguyễn Văn A', role: 'USER' } },
-  { password: '123456', user: { id: 2, username: 'admin', fullName: 'Quản trị viên', role: 'ADMIN' } },
-  { password: '123456', user: { id: 3, username: 'teacher', fullName: 'Cô Lan', role: 'TEACHER' } },
+  {
+    password: '123456',
+    user: {
+      id: 1,
+      username: 'user',
+      fullName: 'Nguyễn Văn An',
+      gender: 'Nam',
+      birthDate: '15/05/2015',
+      className: 'Lớp 5A',
+      role: 'USER',
+    },
+  },
+  {
+    password: '123456',
+    user: {
+      id: 2,
+      username: 'admin',
+      fullName: 'Trần Minh Quân',
+      gender: 'Nam',
+      birthDate: '20/10/1995',
+      className: 'Quản trị hệ thống',
+      role: 'ADMIN',
+    },
+  },
+  {
+    password: '123456',
+    user: {
+      id: 3,
+      username: 'teacher',
+      fullName: 'Nguyễn Thị Hương Lan',
+      gender: 'Nữ',
+      birthDate: '12/08/1992',
+      className: 'Giáo viên Tiếng Anh',
+      role: 'TEACHER',
+    },
+  },
 ];
 
 /* ============================================================
@@ -36,6 +69,7 @@ export interface Season {
 
 export interface SeasonRound extends Round {
   seasonId: string;
+  prerequisiteRoundId?: number | null;
   order: number;
   roundNumber: string; // '01', '02', '03'
   status: RoundStatus;
@@ -45,6 +79,7 @@ export interface SeasonRound extends Round {
 export interface Exam {
   id: number;
   roundId: number;
+  prerequisiteExamId?: number | null;
   order: number; // 1, 2, 3
   title: string;
   questionCount: number;
@@ -138,19 +173,20 @@ export const seasons: Season[] = [
     status: 'ARCHIVED',
     startDate: '01/09/2025',
     endDate: '31/05/2026',
-    totalRoundsParticipated: 15,
-    highestScore: 295,
+    totalRoundsParticipated: 1,
+    highestScore: 290,
     description: 'Đợt thi đã kết thúc. Toàn bộ kết quả đã được lưu trữ.',
   },
 ];
 
 /* ============================================================
- * VÒNG THI (ROUNDS)
+ * VÒNG THI (ROUNDS — LIÊN KẾT DÂY CHUYỀN QUA prerequisiteRoundId)
  * ============================================================ */
 export const mockRounds: SeasonRound[] = [
   {
     id: 1,
     seasonId: '2026-2027',
+    prerequisiteRoundId: null,
     order: 1,
     roundNumber: '01',
     title: 'Vòng 01 — Khởi động',
@@ -164,6 +200,7 @@ export const mockRounds: SeasonRound[] = [
   {
     id: 2,
     seasonId: '2026-2027',
+    prerequisiteRoundId: 1,
     order: 2,
     roundNumber: '02',
     title: 'Vòng 02 — Khám phá',
@@ -177,6 +214,7 @@ export const mockRounds: SeasonRound[] = [
   {
     id: 3,
     seasonId: '2026-2027',
+    prerequisiteRoundId: 2,
     order: 3,
     roundNumber: '03',
     title: 'Vòng 03 — Chinh phục',
@@ -629,12 +667,16 @@ export const mockQuestions: Question[] = mockQuestionsData.map((q) => ({
 }));
 
 /* ============================================================
- * LỊCH SỬ LÀM BÀI (ATTEMPTS)
+ * LỊCH SỬ LÀM BÀI (ATTEMPTS — ĐIỂM SỐ KHỚP 100% VỚI MARIADB)
+ * - Đợt 2026-2027 · Vòng 01: Bài 1 = 90đ, Bài 2 = 100đ, Bài 3 = 80đ -> Tổng điểm vòng = 270/300đ
+ * - Đợt 2025-2026 · Vòng 01: Bài 1 = 100đ, Bài 2 = 100đ, Bài 3 = 90đ -> Tổng điểm vòng = 290/300đ
+ * - Tổng 2 vòng đã thi | Điểm trung bình vòng = (270 + 290) / 2 = 280.0 / 300 điểm
  * ============================================================ */
 export const initialAttempts: ExamAttempt[] = [
-  // Đợt 2026–2027: Vòng 01 đã làm xong cả 3 bài
+  // Đợt 2026–2027: Vòng 01 đã làm xong cả 3 bài (90 + 100 + 80 = 270/300 đ)
   {
     id: 901,
+    userId: 1,
     seasonId: '2026-2027',
     roundId: 1,
     examId: 101,
@@ -650,6 +692,7 @@ export const initialAttempts: ExamAttempt[] = [
   },
   {
     id: 902,
+    userId: 1,
     seasonId: '2026-2027',
     roundId: 1,
     examId: 102,
@@ -665,6 +708,7 @@ export const initialAttempts: ExamAttempt[] = [
   },
   {
     id: 903,
+    userId: 1,
     seasonId: '2026-2027',
     roundId: 1,
     examId: 103,
@@ -679,65 +723,62 @@ export const initialAttempts: ExamAttempt[] = [
     mode: 'exam',
   },
 
-  // Đợt 2025–2026 (Lưu trữ): 15 vòng đã hoàn thành, điểm cao nhất 295/300
-  ...Array.from({ length: 15 }, (_, i) => {
-    const roundNum = i + 1;
-    const baseScore = roundNum === 15 ? 98 : 85 + (roundNum % 12);
-    return [
-      {
-        id: 800 + i * 3 + 1,
-        seasonId: '2025-2026',
-        roundId: 50 + roundNum,
-        examId: 500 + i * 3 + 1,
-        roundTitle: `Vòng ${String(roundNum).padStart(2, '0')} — Niên khóa 2025–2026`,
-        examTitle: `Bài 1: Tổng ôn tập ${roundNum}`,
-        examOrder: 1,
-        score: Math.min(100, baseScore),
-        correctCount: Math.min(10, Math.floor(baseScore / 10)),
-        totalQuestions: 10,
-        submittedAt: `2026-03-${String((roundNum % 25) + 1).padStart(2, '0')}T09:00:00Z`,
-        durationSeconds: 400,
-        mode: 'exam' as const,
-      },
-      {
-        id: 800 + i * 3 + 2,
-        seasonId: '2025-2026',
-        roundId: 50 + roundNum,
-        examId: 500 + i * 3 + 2,
-        roundTitle: `Vòng ${String(roundNum).padStart(2, '0')} — Niên khóa 2025–2026`,
-        examTitle: `Bài 2: Kỹ năng nâng cao ${roundNum}`,
-        examOrder: 2,
-        score: Math.min(100, baseScore + 2),
-        correctCount: Math.min(10, Math.floor((baseScore + 2) / 10)),
-        totalQuestions: 10,
-        submittedAt: `2026-03-${String((roundNum % 25) + 2).padStart(2, '0')}T10:00:00Z`,
-        durationSeconds: 430,
-        mode: 'exam' as const,
-      },
-      {
-        id: 800 + i * 3 + 3,
-        seasonId: '2025-2026',
-        roundId: 50 + roundNum,
-        examId: 500 + i * 3 + 3,
-        roundTitle: `Vòng ${String(roundNum).padStart(2, '0')} — Niên khóa 2025–2026`,
-        examTitle: `Bài 3: Đấu trường về đích ${roundNum}`,
-        examOrder: 3,
-        score: Math.min(100, baseScore - 1),
-        correctCount: Math.min(10, Math.floor((baseScore - 1) / 10)),
-        totalQuestions: 10,
-        submittedAt: `2026-03-${String((roundNum % 25) + 3).padStart(2, '0')}T11:00:00Z`,
-        durationSeconds: 460,
-        mode: 'exam' as const,
-      },
-    ];
-  }).flat(),
+  // Đợt 2025–2026 (Lưu trữ): Vòng 01 đã hoàn thành (100 + 100 + 90 = 290/300 đ)
+  {
+    id: 801,
+    userId: 1,
+    seasonId: '2025-2026',
+    roundId: 4,
+    examId: 401,
+    roundTitle: 'Vòng 01 — Niên khóa 2025–2026',
+    examTitle: 'Bài 1: Tổng ôn tập Từ vựng',
+    examOrder: 1,
+    score: 100,
+    correctCount: 10,
+    totalQuestions: 10,
+    submittedAt: '2026-03-16T09:00:00Z',
+    durationSeconds: 400,
+    mode: 'exam',
+  },
+  {
+    id: 802,
+    userId: 1,
+    seasonId: '2025-2026',
+    roundId: 4,
+    examId: 402,
+    roundTitle: 'Vòng 01 — Niên khóa 2025–2026',
+    examTitle: 'Bài 2: Kỹ năng Ngữ pháp & Đọc hiểu',
+    examOrder: 2,
+    score: 100,
+    correctCount: 10,
+    totalQuestions: 10,
+    submittedAt: '2026-03-17T10:00:00Z',
+    durationSeconds: 430,
+    mode: 'exam',
+  },
+  {
+    id: 803,
+    userId: 1,
+    seasonId: '2025-2026',
+    roundId: 4,
+    examId: 403,
+    roundTitle: 'Vòng 01 — Niên khóa 2025–2026',
+    examTitle: 'Bài 3: Đấu trường Nghe & Phản xạ',
+    examOrder: 3,
+    score: 90,
+    correctCount: 9,
+    totalQuestions: 10,
+    submittedAt: '2026-03-18T11:00:00Z',
+    durationSeconds: 460,
+    mode: 'exam',
+  },
 ];
 
 /* ============================================================
  * THÔNG TIN HỌC SINH & GIAO BÀI
  * ============================================================ */
 export const studentInfo: StudentInfo = {
-  name: 'Nguyễn Văn A',
+  name: 'Nguyễn Văn An',
   role: 'Học sinh',
   coins: 120,
   streakDays: 5,
@@ -948,12 +989,27 @@ export function saveRuntimeAttempt(newAttempt: ExamAttempt) {
     runtimeAttempts.unshift(newAttempt);
   }
 
-  // Cập nhật trạng thái vòng nếu cả 3 bài đã xong
+  // Cập nhật trạng thái vòng nếu cả 3 bài đã xong và TỰ ĐỘNG MỞ KHÓA vòng tiếp theo liên kết
   const round = mockRounds.find((r) => r.id === newAttempt.roundId);
-  if (round && round.status === 'IN_PROGRESS') {
-    const { isCompleted } = getRoundProgress(round.id, runtimeAttempts);
+  if (round) {
+    const { isCompleted, score: roundScore } = getRoundProgress(round.id, runtimeAttempts);
     if (isCompleted) {
       round.status = 'COMPLETED';
+      // Mở khóa vòng kế tiếp liên kết với vòng này (qua prerequisiteRoundId hoặc order + 1)
+      const nextRound = mockRounds.find(
+        (r) =>
+          r.seasonId === round.seasonId &&
+          (r.prerequisiteRoundId === round.id || r.order === round.order + 1)
+      );
+      if (nextRound && nextRound.status === 'LOCKED') {
+        nextRound.status = 'IN_PROGRESS';
+        nextRound.isOpen = true;
+      }
+      // Đồng bộ điểm cao nhất của đợt thi
+      const season = seasons.find((s) => s.id === round.seasonId);
+      if (season && roundScore != null) {
+        season.highestScore = Math.max(season.highestScore ?? 0, roundScore);
+      }
     }
   }
 

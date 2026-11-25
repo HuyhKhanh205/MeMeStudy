@@ -150,19 +150,13 @@ export default function HistoryScreen() {
     });
   };
 
-  // Thống kê đợt
-  const totalRoundsParticipated =
-    selectedSeason.id === '2025-2026'
-      ? selectedSeason.totalRoundsParticipated ?? 15
-      : groupedRounds.length;
+  // Thống kê đợt: đồng bộ trực tiếp với danh sách vòng đã thi để số liệu luôn khớp 100%
+  const totalRoundsParticipated = groupedRounds.length;
 
-  // Điểm cao nhất tính theo điểm vòng (thang điểm 300)
-  const highestScore =
-    selectedSeason.id === '2025-2026'
-      ? '295/300'
-      : groupedRounds.length
-        ? `${Math.max(...groupedRounds.map((g) => g.roundScore))}/300`
-        : '0/300';
+  // Điểm cao nhất tính theo điểm vòng thực tế (thang điểm 300)
+  const highestScore = groupedRounds.length
+    ? `${Math.max(...groupedRounds.map((g) => g.roundScore))}/300`
+    : '0/300';
 
   return (
     <ImageBackground

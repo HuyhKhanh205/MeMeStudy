@@ -1,9 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { WoodLabel } from '../game';
 import { gameFonts, spacing } from '../../theme';
 import type { ExamAttempt, Season, SeasonRound } from '../../services/mock/data';
 import { getRoundProgress, getRoundScore } from '../../services/mock/data';
+import { showAlert } from '../../utils/confirm';
 
 interface Props {
   season: Season;
@@ -22,13 +23,10 @@ export default function CurrentSeason({
 }: Props) {
   const handlePressRound = (round: SeasonRound) => {
     if (round.status === 'LOCKED') {
-      const title = 'Vòng này chưa mở';
-      const msg = 'Vòng thi này đang tạm khóa. Bạn hãy hoàn thành các bài thi đang mở trước nhé!';
-      if (Platform.OS === 'web') {
-        globalThis.alert?.(`${title}\n\n${msg}`);
-      } else {
-        Alert.alert(title, msg);
-      }
+      void showAlert(
+        'Vòng này chưa mở',
+        'Vòng thi này đang tạm khóa. Bạn hãy hoàn thành các bài thi đang mở trước nhé!',
+      );
       return;
     }
     onSelectRound(round);

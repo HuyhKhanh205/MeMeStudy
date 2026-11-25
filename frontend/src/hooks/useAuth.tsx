@@ -9,10 +9,17 @@ import {
 } from 'react';
 import { authService } from '../services/authService';
 import { setUnauthorizedHandler } from '../services/http';
-import { syncUserDataFromBackend } from '../services/mock/data';
+import { studentInfo, syncUserDataFromBackend } from '../services/mock/data';
 import { useAppDispatch } from '../store';
 import { api } from '../store/api';
-import type { AuthResponse, LoginRequest, RegisterRequest, User } from '../types';
+import type {
+  AuthResponse,
+  ChangePasswordRequest,
+  LoginRequest,
+  RegisterRequest,
+  UpdateProfileRequest,
+  User,
+} from '../types';
 import { tokenStorage } from '../utils/tokenStorage';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -22,6 +29,8 @@ interface AuthContextValue {
   user: User | null;
   login: (body: LoginRequest) => Promise<void>;
   register: (body: RegisterRequest) => Promise<void>;
+  updateProfile: (body: UpdateProfileRequest) => Promise<void>;
+  changePassword: (body: ChangePasswordRequest) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -87,6 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       login: async (body) => startSession(await authService.login(body)),
       register: async (body) => startSession(await authService.register(body)),
+      updateProfile: async (body) => {
+        const updated = await authService.updateProfile(body);
+        studentInfo.name = updated.fullName;
+        setUser(updated);
+      },
+      changePassword: async (body) => {
+        await authService.changePassword(body);
+      },
       logout: clearSession,
     }),
     [status, user, startSession, clearSession],

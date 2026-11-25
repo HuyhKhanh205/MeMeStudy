@@ -42,7 +42,7 @@ import {
   type MockQuestionItem,
 } from '../../services/mock/data';
 import { gameColors, gameFonts, gameGradients, gameShadows, spacing } from '../../theme';
-import { confirm } from '../../utils/confirm';
+import { confirm, showAlert } from '../../utils/confirm';
 
 type Props = NativeStackScreenProps<UserStackParamList, 'Exam'>;
 
@@ -106,7 +106,7 @@ export default function ExamScreen({ navigation, route }: Props) {
     );
     if (existingAttempt) {
       submittedRef.current = true;
-      Alert.alert(
+      void showAlert(
         'Bài thi đã hoàn thành',
         'Bạn đã hoàn thành bài kiểm tra này. Hệ thống sẽ mở lại kết quả của bạn.'
       );
@@ -188,12 +188,12 @@ export default function ExamScreen({ navigation, route }: Props) {
     } catch (e: any) {
       submittedRef.current = false;
       setSubmitting(false);
-      Alert.alert('Lỗi nộp bài', e?.message || 'Có lỗi xảy ra khi nộp bài.');
+      void showAlert('Lỗi nộp bài', e?.message || 'Có lỗi xảy ra khi nộp bài.');
     }
   }, [answers, exam, mode, navigation, questions, roundId, startedAt]);
 
   const handleAutoSubmit = async () => {
-    Alert.alert('Hết giờ làm bài!', 'Thời gian đã hết, hệ thống sẽ tự động nộp bài.');
+    void showAlert('Hết giờ làm bài!', 'Thời gian đã hết, hệ thống sẽ tự động nộp bài.');
     await submitExam();
   };
 

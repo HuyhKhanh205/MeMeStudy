@@ -3,11 +3,13 @@ import type {
   Attempt,
   AttemptResult,
   AuthResponse,
+  ChangePasswordRequest,
   LoginRequest,
   Question,
   RegisterRequest,
   Round,
   SubmitRequest,
+  UpdateProfileRequest,
   User,
 } from '../../types';
 import { config } from '../../utils/config';
@@ -21,6 +23,7 @@ import {
   mockQuestionsData,
   mockRounds,
   saveRuntimeAttempt,
+  studentInfo,
   syncUserDataFromBackend,
   type ExamAttempt,
   type MockQuestionItem,
@@ -88,6 +91,40 @@ export const mockApi = {
   async me(): Promise<User> {
     await delay(100);
     return currentUser();
+  },
+
+  async updateProfile({
+    fullName,
+    gender,
+    birthDate,
+    className,
+  }: UpdateProfileRequest): Promise<User> {
+    await delay(150);
+    const user = await currentUser();
+    const account = mockAccounts.find((a) => a.user.id === user.id) ?? mockAccounts[0];
+    const cleanName = fullName.trim() || account.user.fullName;
+    account.user = {
+      ...account.user,
+      fullName: cleanName,
+      gender: gender.trim() || 'Nam',
+      birthDate: birthDate.trim() || '15/05/2015',
+      className: className.trim() || 'Lớp 5A',
+    };
+    studentInfo.name = cleanName;
+    return account.user;
+  },
+
+  async changePassword({
+    currentPassword,
+    newPassword,
+  }: ChangePasswordRequest): Promise<void> {
+    await delay(150);
+    const user = await currentUser();
+    const account = mockAccounts.find((a) => a.user.id === user.id) ?? mockAccounts[0];
+    if (account.password !== currentPassword) {
+      throw new ApiError('Mật khẩu hiện tại không đúng.', 400);
+    }
+    account.password = newPassword;
   },
 
   async listRounds(): Promise<Round[]> {

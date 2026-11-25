@@ -4,6 +4,9 @@ export interface User {
   id: number;
   username: string;
   fullName: string;
+  gender?: string;
+  birthDate?: string;
+  className?: string;
   role: Role;
 }
 
@@ -17,6 +20,18 @@ export interface RegisterRequest {
   password: string;
   fullName: string;
   role?: Role;
+}
+
+export interface UpdateProfileRequest {
+  fullName: string;
+  gender: string;
+  birthDate: string;
+  className: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface AuthResponse {
