@@ -953,7 +953,53 @@ export function getRoundProgress(
 
 // Lưu trữ runtime các attempt (giữ nguyên khi điều hướng các màn hình)
 let runtimeAttempts: ExamAttempt[] = [...initialAttempts];
+let activeUserId = 1;
 const listeners: Array<() => void> = [];
+
+/**
+ * Tính toán lại trạng thái mở khóa dây chuyền của các Vòng thi (Vòng 1 -> Vòng 2 -> Vòng 3)
+ * dựa trên lịch sử bài làm thực tế của user đang đăng nhập.
+ */
+export function recomputeRoundsForUser(userAttempts: ExamAttempt[]) {
+  const activeRounds = mockRounds
+    .filter((r) => r.seasonId === '2026-2027')
+    .sort((a, b) => a.order - b.order);
+
+  for (let i = 0; i < activeRounds.length; i++) {
+    const r = activeRounds[i];
+    const roundExams = mockExams.filter((ex) => ex.roundId === r.id);
+    const totalExams = roundExams.length || 3;
+    const doneCount = roundExams.filter((ex) =>
+      userAttempts.some((a) => a.roundId === r.id && a.examId === ex.id)
+    ).length;
+
+    const prevRound = i > 0 ? activeRounds[i - 1] : null;
+    const prevUnlocked = prevRound == null || prevRound.status === 'COMPLETED';
+
+    if (!prevUnlocked) {
+      r.status = 'LOCKED';
+      r.isOpen = false;
+    } else if (doneCount >= totalExams) {
+      r.status = 'COMPLETED';
+      r.isOpen = true;
+    } else {
+      r.status = 'IN_PROGRESS';
+      r.isOpen = true;
+    }
+  }
+}
+
+export function setActiveUserForStore(user: User | null) {
+  activeUserId = user?.id ?? 1;
+  if (user) {
+    studentInfo.name = user.fullName;
+    const userAtts = runtimeAttempts.filter((a) => (a.userId ?? 1) === activeUserId);
+    studentInfo.coins = user.id === 1 ? 120 : userAtts.length * 20;
+    studentInfo.streakDays = user.id === 1 ? 5 : userAtts.length > 0 ? 1 : 0;
+    recomputeRoundsForUser(userAtts);
+  }
+  notifyStore();
+}
 
 export function subscribeToStore(listener: () => void) {
   listeners.push(listener);
@@ -968,44 +1014,42 @@ function notifyStore() {
 }
 
 export function getRuntimeAttempts(): ExamAttempt[] {
-  return runtimeAttempts;
+  return runtimeAttempts.filter((a) => (a.userId ?? 1) === activeUserId);
 }
 
 export function saveRuntimeAttempt(newAttempt: ExamAttempt) {
+  const attemptWithUser: ExamAttempt = {
+    ...newAttempt,
+    userId: newAttempt.userId ?? activeUserId,
+  };
   const existingIdx = runtimeAttempts.findIndex(
-    (a) => a.roundId === newAttempt.roundId && a.examId === newAttempt.examId
+    (a) =>
+      (a.userId ?? 1) === (attemptWithUser.userId ?? activeUserId) &&
+      a.roundId === attemptWithUser.roundId &&
+      a.examId === attemptWithUser.examId
   );
 
   if (existingIdx !== -1) {
     // Nếu bài thi chính thức đã hoàn thành, không ghi đè điểm chính thức khi làm chế độ ôn tập (practice)
     // hoặc khi cố tình nộp lại bài đã thi xong
     const existing = runtimeAttempts[existingIdx];
-    if (newAttempt.mode === 'practice' || existing.mode !== 'practice') {
+    if (attemptWithUser.mode === 'practice' || existing.mode !== 'practice') {
       notifyStore();
       return;
     }
-    runtimeAttempts[existingIdx] = newAttempt;
+    runtimeAttempts[existingIdx] = attemptWithUser;
   } else {
-    runtimeAttempts.unshift(newAttempt);
+    runtimeAttempts.unshift(attemptWithUser);
   }
 
-  // Cập nhật trạng thái vòng nếu cả 3 bài đã xong và TỰ ĐỘNG MỞ KHÓA vòng tiếp theo liên kết
-  const round = mockRounds.find((r) => r.id === newAttempt.roundId);
+  // Cập nhật lại trạng thái liên kết dây chuyền giữa các vòng (Vòng 1 -> Vòng 2 -> Vòng 3)
+  const currentUserAttempts = getRuntimeAttempts();
+  recomputeRoundsForUser(currentUserAttempts);
+
+  const round = mockRounds.find((r) => r.id === attemptWithUser.roundId);
   if (round) {
-    const { isCompleted, score: roundScore } = getRoundProgress(round.id, runtimeAttempts);
+    const { isCompleted, score: roundScore } = getRoundProgress(round.id, currentUserAttempts);
     if (isCompleted) {
-      round.status = 'COMPLETED';
-      // Mở khóa vòng kế tiếp liên kết với vòng này (qua prerequisiteRoundId hoặc order + 1)
-      const nextRound = mockRounds.find(
-        (r) =>
-          r.seasonId === round.seasonId &&
-          (r.prerequisiteRoundId === round.id || r.order === round.order + 1)
-      );
-      if (nextRound && nextRound.status === 'LOCKED') {
-        nextRound.status = 'IN_PROGRESS';
-        nextRound.isOpen = true;
-      }
-      // Đồng bộ điểm cao nhất của đợt thi
       const season = seasons.find((s) => s.id === round.seasonId);
       if (season && roundScore != null) {
         season.highestScore = Math.max(season.highestScore ?? 0, roundScore);
@@ -1108,9 +1152,9 @@ export async function syncUserDataFromBackend(): Promise<void> {
     }
 
     if (Array.isArray(data.attempts)) {
-      runtimeAttempts = data.attempts.map((a: any) => ({
+      const serverAttempts: ExamAttempt[] = data.attempts.map((a: any) => ({
         id: a.id ?? a.attemptId,
-        userId: a.userId ?? 1,
+        userId: a.userId ?? activeUserId,
         seasonId: a.seasonId ?? '2026-2027',
         roundId: a.roundId,
         examId: a.examId ?? 101,
@@ -1125,6 +1169,17 @@ export async function syncUserDataFromBackend(): Promise<void> {
         mode: a.mode ?? 'exam',
         review: a.review,
       }));
+      // Cập nhật các attempt của user hiện tại
+      const otherUsersAttempts = runtimeAttempts.filter((a) => (a.userId ?? 1) !== activeUserId);
+      runtimeAttempts = [...serverAttempts, ...otherUsersAttempts];
+    }
+
+    // Luôn tính lại trạng thái vòng thi (COMPLETED / IN_PROGRESS / LOCKED) theo đúng tiến độ của user hiện tại
+    const userAtts = getRuntimeAttempts();
+    recomputeRoundsForUser(userAtts);
+    if (activeUserId !== 1 && (!data.student || data.student.coins == null)) {
+      studentInfo.coins = userAtts.length * 20;
+      studentInfo.streakDays = userAtts.length > 0 ? 1 : 0;
     }
 
     notifyStore();
