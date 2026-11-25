@@ -74,13 +74,27 @@ export default function RoundListScreen({ navigation, route }: Props) {
   useFocusEffect(
     useCallback(() => {
       void syncUserDataFromBackend();
-      setAttempts([...getRuntimeAttempts()]);
+      const latestAttempts = [...getRuntimeAttempts()];
+      setAttempts(latestAttempts);
+
       const focusRoundId = (route.params as any)?.focusRoundId;
       if (focusRoundId) {
         setExpandedRoundIds((prev) => ({
           ...prev,
           [focusRoundId]: true,
         }));
+      } else {
+        // Tự động mở rộng vòng đang thi (IN_PROGRESS) của user hiện tại
+        const inProgressRound = mockRounds.find(
+          (r) => r.seasonId === '2026-2027' && r.status === 'IN_PROGRESS'
+        );
+        if (inProgressRound) {
+          setExpandedRoundIds({
+            1: inProgressRound.id === 1,
+            2: inProgressRound.id === 2,
+            3: inProgressRound.id === 3,
+          });
+        }
       }
       const unsub = subscribeToStore(() => {
         setAttempts([...getRuntimeAttempts()]);
