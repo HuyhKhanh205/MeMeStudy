@@ -4,3 +4,4 @@ dist/
 *.log
 backend/target/
 target/
+out/

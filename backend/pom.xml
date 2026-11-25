@@ -20,10 +20,17 @@
         <jersey.version>3.1.9</jersey.version>
         <hibernate.version>6.4.4.Final</hibernate.version>
         <h2.version>2.2.224</h2.version>
-        <jetty.version>12.0.14</jetty.version>
+        <tomcat.version>10.1.33</tomcat.version>
     </properties>
 
     <dependencies>
+        <!-- Embedded Apache Tomcat 10.1 (Jakarta EE 10 / Servlet 6.0) -->
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-core</artifactId>
+            <version>${tomcat.version}</version>
+        </dependency>
+
         <!-- Jakarta EE 10 Web API Spec -->
         <dependency>
             <groupId>jakarta.platform</groupId>
@@ -130,18 +137,14 @@
                 </configuration>
             </plugin>
 
-            <!-- Jetty EE10 Plugin để chạy backend bằng 1 lệnh: mvn jetty:run -->
+            <!-- Maven Tomcat Embedded Runner: chạy Tomcat 10.1 bằng lệnh mvn compile exec:java -->
             <plugin>
-                <groupId>org.eclipse.jetty.ee10</groupId>
-                <artifactId>jetty-ee10-maven-plugin</artifactId>
-                <version>${jetty.version}</version>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
                 <configuration>
-                    <httpConnector>
-                        <port>8080</port>
-                    </httpConnector>
-                    <webApp>
-                        <contextPath>/</contextPath>
-                    </webApp>
+                    <mainClass>com.memestudy.backend.TomcatServer</mainClass>
+                    <cleanupDaemonThreads>false</cleanupDaemonThreads>
                 </configuration>
             </plugin>
         </plugins>
