@@ -5,10 +5,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useLayoutEffect, useState } from 'react';
 import {
-  Alert,
   ImageBackground,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -45,6 +43,7 @@ import {
   type TeacherAssignment,
 } from '../../services/mock/data';
 import { gameFonts, spacing } from '../../theme';
+import { showAlert } from '../../utils/confirm';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<UserTabParamList, 'Home'>,
@@ -100,13 +99,10 @@ export default function HomeScreen({ navigation }: Props) {
   // Xử lý khi bấm vào một vòng thi
   const handleSelectRound = (round: SeasonRound) => {
     if (round.status === 'LOCKED') {
-      const title = 'Vòng này chưa mở';
-      const msg = 'Vòng này đang tạm khóa. Bạn hãy hoàn thành các bài thi đang mở nhé!';
-      if (Platform.OS === 'web') {
-        globalThis.alert?.(`${title}\n\n${msg}`);
-      } else {
-        Alert.alert(title, msg);
-      }
+      void showAlert(
+        'Vòng này chưa mở',
+        'Vòng này đang tạm khóa. Bạn hãy hoàn thành các bài thi đang mở nhé!',
+      );
       return;
     }
     (navigation.navigate as any)('RoundList', { focusRoundId: round.id });

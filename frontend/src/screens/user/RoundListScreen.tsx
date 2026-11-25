@@ -5,10 +5,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useLayoutEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   ImageBackground,
-  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -39,6 +37,7 @@ import {
   type SeasonRound,
 } from '../../services/mock/data';
 import { colors, gameFonts, spacing, typography } from '../../theme';
+import { showAlert } from '../../utils/confirm';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<UserTabParamList, 'RoundList'>,
@@ -46,11 +45,7 @@ type Props = CompositeScreenProps<
 >;
 
 function notifyUser(title: string, message: string) {
-  if (Platform.OS === 'web') {
-    globalThis.alert?.(`${title}\n\n${message}`);
-  } else {
-    Alert.alert(title, message);
-  }
+  void showAlert(title, message);
 }
 
 export default function RoundListScreen({ navigation, route }: Props) {

@@ -11,6 +11,7 @@ import LoadingView from './components/LoadingView';
 import { AuthProvider } from './hooks/useAuth';
 import RootNavigator from './navigation/RootNavigator';
 import { store } from './store';
+import { AppDialogHost } from './utils/confirm';
 
 export default function App() {
   // Font của Style A – Game hoá (xem src/theme/game.ts).
@@ -28,6 +29,7 @@ export default function App() {
           <Provider store={store}>
             <AuthProvider>
               <RootNavigator />
+              <AppDialogHost />
             </AuthProvider>
           </Provider>
         ) : (

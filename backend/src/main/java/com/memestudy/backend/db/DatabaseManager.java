@@ -25,7 +25,7 @@ public class DatabaseManager {
     private static String dbUrl =
             "jdbc:mariadb://localhost:3306/memestudy?useUnicode=true&characterEncoding=UTF-8&createDatabaseIfNotExist=true";
     private static String dbUser = "root";
-    private static String dbPassword = "";
+    private static String dbPassword = "123456";
     private static volatile boolean initialized = false;
     private static volatile boolean mariaDbAvailable = false;
 
@@ -145,6 +145,14 @@ public class DatabaseManager {
     }
 
     private static void ensureDefaultPasswords(Connection conn) {
+        // Tự động bổ sung cột gender, birth_date, class_name nếu bảng users cũ chưa có
+        try (Statement st = conn.createStatement()) {
+            st.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20) NOT NULL DEFAULT 'Nam'");
+            st.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date VARCHAR(20) NOT NULL DEFAULT '15/05/2015'");
+            st.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS class_name VARCHAR(50) NOT NULL DEFAULT 'Lớp 5A'");
+        } catch (Exception ignored) {
+        }
+
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT id, password_hash FROM users WHERE username IN ('user', 'admin', 'teacher')")) {
             try (ResultSet rs = ps.executeQuery()) {

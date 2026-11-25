@@ -35,6 +35,7 @@ import {
 } from '../../services/mock/data';
 import { mockApi } from '../../services/mock';
 import { gameColors, gameFonts, spacing } from '../../theme';
+import { showAlert } from '../../utils/confirm';
 
 type Props = NativeStackScreenProps<UserStackParamList, 'Result'>;
 
@@ -121,7 +122,7 @@ export default function ResultScreen({ navigation, route }: Props) {
   // Xử lý làm bài tiếp theo
   const handleNextExam = () => {
     if (!canStartNextExam || !nextExam) {
-      Alert.alert(
+      void showAlert(
         'Vòng thi đã hoàn thành',
         'Bạn đã hoàn thành bài thi này. Các bài kiểm tra đã thi xong không thể thi lại.'
       );

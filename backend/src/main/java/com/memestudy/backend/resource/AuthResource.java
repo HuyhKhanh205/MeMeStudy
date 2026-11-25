@@ -9,6 +9,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.HttpHeaders;
@@ -177,12 +178,16 @@ public class AuthResource {
         }
 
         List<AttemptResultDto> results = InMemoryStore.getResultsForUser(user.getId());
-        int attemptCount = results.size();
+        Map<Integer, Integer> roundScores = new HashMap<>();
+        for (AttemptResultDto r : results) {
+            roundScores.put(r.getRoundId(), roundScores.getOrDefault(r.getRoundId(), 0) + r.getScore());
+        }
+        int attemptCount = roundScores.size();
         Double averageScore = null;
         if (attemptCount > 0) {
             double sum = 0;
-            for (AttemptResultDto r : results) {
-                sum += r.getScore();
+            for (int roundScore : roundScores.values()) {
+                sum += roundScore;
             }
             averageScore = Math.round((sum / attemptCount) * 10.0) / 10.0;
         }
@@ -193,6 +198,130 @@ public class AuthResource {
         profileData.put("averageScore", averageScore);
         profileData.put("results", results);
         return Response.ok(ApiResponse.ok(profileData)).build();
+    }
+
+    public static class UpdateProfilePayload {
+        private String fullName;
+        private String gender;
+        private String birthDate;
+        private String className;
+
+        public String getFullName() {
+            return fullName;
+        }
+
+        public void setFullName(String fullName) {
+            this.fullName = fullName;
+        }
+
+        public String getGender() {
+            return gender;
+        }
+
+        public void setGender(String gender) {
+            this.gender = gender;
+        }
+
+        public String getBirthDate() {
+            return birthDate;
+        }
+
+        public void setBirthDate(String birthDate) {
+            this.birthDate = birthDate;
+        }
+
+        public String getClassName() {
+            return className;
+        }
+
+        public void setClassName(String className) {
+            this.className = className;
+        }
+    }
+
+    public static class ChangePasswordPayload {
+        private String currentPassword;
+        private String newPassword;
+
+        public String getCurrentPassword() {
+            return currentPassword;
+        }
+
+        public void setCurrentPassword(String currentPassword) {
+            this.currentPassword = currentPassword;
+        }
+
+        public String getNewPassword() {
+            return newPassword;
+        }
+
+        public void setNewPassword(String newPassword) {
+            this.newPassword = newPassword;
+        }
+    }
+
+    @PUT
+    @Path("/profile")
+    public Response updateProfile(
+            UpdateProfilePayload body,
+            @HeaderParam(HttpHeaders.AUTHORIZATION) String authHeader
+    ) {
+        if (body == null || body.getFullName() == null || body.getFullName().isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(ApiResponse.error("Họ và tên không được để trống."))
+                    .build();
+        }
+
+        Integer userId = JwtUtil.parseUserIdFromHeader(authHeader);
+        int targetUserId = userId != null ? userId : 1;
+
+        UserDto updated = InMemoryStore.updateUserProfile(
+                targetUserId,
+                body.getFullName(),
+                body.getGender(),
+                body.getBirthDate(),
+                body.getClassName()
+        );
+        if (updated == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(ApiResponse.error("Không tìm thấy người dùng."))
+                    .build();
+        }
+        return Response.ok(ApiResponse.ok(updated)).build();
+    }
+
+    @PUT
+    @Path("/password")
+    public Response changePassword(
+            ChangePasswordPayload body,
+            @HeaderParam(HttpHeaders.AUTHORIZATION) String authHeader
+    ) {
+        if (body == null
+                || body.getCurrentPassword() == null
+                || body.getCurrentPassword().isEmpty()
+                || body.getNewPassword() == null
+                || body.getNewPassword().length() < 6) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(ApiResponse.error("Vui lòng nhập mật khẩu hiện tại và mật khẩu mới (tối thiểu 6 ký tự)."))
+                    .build();
+        }
+
+        Integer userId = JwtUtil.parseUserIdFromHeader(authHeader);
+        int targetUserId = userId != null ? userId : 1;
+
+        boolean ok = InMemoryStore.changeUserPassword(
+                targetUserId,
+                body.getCurrentPassword(),
+                body.getNewPassword()
+        );
+        if (!ok) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(ApiResponse.error("Mật khẩu hiện tại không đúng."))
+                    .build();
+        }
+        Map<String, Object> res = new HashMap<>();
+        res.put("success", true);
+        return Response.ok(ApiResponse.ok(res)).build();
     }
 }
 

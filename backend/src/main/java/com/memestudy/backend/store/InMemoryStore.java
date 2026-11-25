@@ -66,34 +66,34 @@ public class InMemoryStore {
 
     private static void initAccounts() {
         ACCOUNTS.add(new AccountRecord(
-                new UserDto(1, "user", "Nguyễn Văn A", "USER"),
+                new UserDto(1, "user", "Nguyễn Văn An", "Nam", "15/05/2015", "Lớp 5A", "USER"),
                 BCrypt.hashpw("123456", BCrypt.gensalt())
         ));
         ACCOUNTS.add(new AccountRecord(
-                new UserDto(2, "admin", "Quản trị viên", "ADMIN"),
+                new UserDto(2, "admin", "Trần Minh Quân", "Nam", "20/10/1995", "Quản trị hệ thống", "ADMIN"),
                 BCrypt.hashpw("123456", BCrypt.gensalt())
         ));
         ACCOUNTS.add(new AccountRecord(
-                new UserDto(3, "teacher", "Cô Lan", "TEACHER"),
+                new UserDto(3, "teacher", "Nguyễn Thị Hương Lan", "Nữ", "12/08/1992", "Giáo viên Tiếng Anh", "TEACHER"),
                 BCrypt.hashpw("123456", BCrypt.gensalt())
         ));
     }
 
     private static void initRounds() {
         ROUNDS.add(new RoundDto(
-                1, "2026-2027", 1, "01", "COMPLETED",
+                1, "2026-2027", null, 1, "01", "COMPLETED",
                 "Vòng 01 — Khởi động",
                 "Khởi động năm học mới với từ vựng đồ dùng học tập và chào hỏi.",
                 15, 30, true
         ));
         ROUNDS.add(new RoundDto(
-                2, "2026-2027", 2, "02", "IN_PROGRESS",
+                2, "2026-2027", 1, 2, "02", "IN_PROGRESS",
                 "Vòng 02 — Khám phá",
                 "Khám phá thế giới sở thích, gia đình và trường lớp qua bài học vui nhộn.",
                 15, 30, true
         ));
         ROUNDS.add(new RoundDto(
-                3, "2026-2027", 3, "03", "LOCKED",
+                3, "2026-2027", 2, 3, "03", "LOCKED",
                 "Vòng 03 — Chinh phục",
                 "Thử thách nâng cao các thì cơ bản và kỹ năng nghe hội thoại thực tế.",
                 15, 30, false
@@ -226,16 +226,16 @@ public class InMemoryStore {
                 80, 8, 10, "2026-10-18T10:00:00Z", 510, "exam", createSeedReview(203, 8)
         ));
         user1Results.add(new AttemptResultDto(
-                843, 1, "2025-2026", 65, 543, "Vòng 15 — Niên khóa 2025–2026", "Bài 1: Tổng ôn tập 15", 1,
-                98, 9, 10, "2026-03-16T09:00:00Z", 400, "exam", createSeedReview(201, 9)
+                801, 1, "2025-2026", 4, 401, "Vòng 01 — Niên khóa 2025–2026", "Bài 1: Tổng ôn tập Từ vựng", 1,
+                100, 10, 10, "2026-03-16T09:00:00Z", 400, "exam", createSeedReview(201, 10)
         ));
         user1Results.add(new AttemptResultDto(
-                844, 1, "2025-2026", 65, 544, "Vòng 15 — Niên khóa 2025–2026", "Bài 2: Kỹ năng nâng cao 15", 2,
+                802, 1, "2025-2026", 4, 402, "Vòng 01 — Niên khóa 2025–2026", "Bài 2: Kỹ năng Ngữ pháp & Đọc hiểu", 2,
                 100, 10, 10, "2026-03-17T10:00:00Z", 430, "exam", createSeedReview(202, 10)
         ));
         user1Results.add(new AttemptResultDto(
-                845, 1, "2025-2026", 65, 545, "Vòng 15 — Niên khóa 2025–2026", "Bài 3: Đấu trường về đích 15", 3,
-                97, 9, 10, "2026-03-18T11:00:00Z", 460, "exam", createSeedReview(203, 9)
+                803, 1, "2025-2026", 4, 403, "Vòng 01 — Niên khóa 2025–2026", "Bài 3: Đấu trường Nghe & Phản xạ", 3,
+                90, 9, 10, "2026-03-18T11:00:00Z", 460, "exam", createSeedReview(203, 9)
         ));
         USER_RESULTS.put(1, user1Results);
     }
@@ -266,7 +266,7 @@ public class InMemoryStore {
         if (DatabaseManager.isMariaDbAvailable()) {
             try (Connection conn = DatabaseManager.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
-                         "SELECT id, username, password_hash, full_name, role FROM users WHERE LOWER(username) = LOWER(?)")) {
+                         "SELECT id, username, password_hash, full_name, gender, birth_date, class_name, role FROM users WHERE LOWER(username) = LOWER(?)")) {
                 ps.setString(1, clean);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
@@ -274,6 +274,9 @@ public class InMemoryStore {
                                 rs.getInt("id"),
                                 rs.getString("username"),
                                 rs.getString("full_name"),
+                                rs.getString("gender"),
+                                rs.getString("birth_date"),
+                                rs.getString("class_name"),
                                 rs.getString("role")
                         );
                         return new AccountRecord(u, rs.getString("password_hash"));
@@ -299,7 +302,7 @@ public class InMemoryStore {
         if (DatabaseManager.isMariaDbAvailable()) {
             try (Connection conn = DatabaseManager.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
-                         "SELECT id, username, full_name, role FROM users WHERE id = ?")) {
+                         "SELECT id, username, full_name, gender, birth_date, class_name, role FROM users WHERE id = ?")) {
                 ps.setInt(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
@@ -307,6 +310,9 @@ public class InMemoryStore {
                                 rs.getInt("id"),
                                 rs.getString("username"),
                                 rs.getString("full_name"),
+                                rs.getString("gender"),
+                                rs.getString("birth_date"),
+                                rs.getString("class_name"),
                                 rs.getString("role")
                         );
                     }
@@ -362,17 +368,110 @@ public class InMemoryStore {
         return user;
     }
 
+    public static UserDto updateUserProfile(
+            int userId,
+            String fullName,
+            String gender,
+            String birthDate,
+            String className
+    ) {
+        String cleanName = fullName != null ? fullName.trim() : "";
+        String cleanGender = (gender != null && !gender.isBlank()) ? gender.trim() : "Nam";
+        String cleanBirthDate = (birthDate != null && !birthDate.isBlank()) ? birthDate.trim() : "15/05/2015";
+        String cleanClassName = (className != null && !className.isBlank()) ? className.trim() : "Lớp 5A";
+
+        if (DatabaseManager.isMariaDbAvailable()) {
+            try (Connection conn = DatabaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "UPDATE users SET full_name = ?, gender = ?, birth_date = ?, class_name = ? WHERE id = ?")) {
+                ps.setString(1, cleanName);
+                ps.setString(2, cleanGender);
+                ps.setString(3, cleanBirthDate);
+                ps.setString(4, cleanClassName);
+                ps.setInt(5, userId);
+                ps.executeUpdate();
+            } catch (Exception e) {
+                System.err.println("[MariaDB] updateUserProfile error: " + e.getMessage());
+            }
+        }
+
+        for (AccountRecord rec : ACCOUNTS) {
+            if (rec.getUser().getId() == userId) {
+                rec.getUser().setFullName(cleanName);
+                rec.getUser().setGender(cleanGender);
+                rec.getUser().setBirthDate(cleanBirthDate);
+                rec.getUser().setClassName(cleanClassName);
+                return rec.getUser();
+            }
+        }
+        return findUserById(userId);
+    }
+
+    public static boolean changeUserPassword(int userId, String currentPassword, String newPassword) {
+        String currentHash = null;
+        if (DatabaseManager.isMariaDbAvailable()) {
+            try (Connection conn = DatabaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement("SELECT password_hash FROM users WHERE id = ?")) {
+                ps.setInt(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        currentHash = rs.getString("password_hash");
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[MariaDB] changeUserPassword select error: " + e.getMessage());
+            }
+        }
+
+        if (currentHash == null) {
+            for (AccountRecord rec : ACCOUNTS) {
+                if (rec.getUser().getId() == userId) {
+                    currentHash = rec.getPasswordHash();
+                    break;
+                }
+            }
+        }
+
+        if (currentHash == null || !BCrypt.checkpw(currentPassword, currentHash)) {
+            return false;
+        }
+
+        String newHash = BCrypt.hashpw(newPassword, BCrypt.gensalt());
+        if (DatabaseManager.isMariaDbAvailable()) {
+            try (Connection conn = DatabaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement("UPDATE users SET password_hash = ? WHERE id = ?")) {
+                ps.setString(1, newHash);
+                ps.setInt(2, userId);
+                ps.executeUpdate();
+            } catch (Exception e) {
+                System.err.println("[MariaDB] changeUserPassword update error: " + e.getMessage());
+            }
+        }
+
+        for (int i = 0; i < ACCOUNTS.size(); i++) {
+            AccountRecord rec = ACCOUNTS.get(i);
+            if (rec.getUser().getId() == userId) {
+                ACCOUNTS.set(i, new AccountRecord(rec.getUser(), newHash));
+                break;
+            }
+        }
+        return true;
+    }
+
     public static List<RoundDto> getRounds() {
         if (DatabaseManager.isMariaDbAvailable()) {
             try (Connection conn = DatabaseManager.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
-                         "SELECT id, season_id, round_order, round_number, status, title, description, duration_minutes, question_count, is_open FROM rounds ORDER BY round_order ASC");
+                         "SELECT id, season_id, prerequisite_round_id, round_order, round_number, status, title, description, duration_minutes, question_count, is_open FROM rounds WHERE season_id = '2026-2027' ORDER BY round_order ASC");
                  ResultSet rs = ps.executeQuery()) {
                 List<RoundDto> list = new ArrayList<>();
                 while (rs.next()) {
+                    int preId = rs.getInt("prerequisite_round_id");
+                    Integer preObj = rs.wasNull() ? null : preId;
                     list.add(new RoundDto(
                             rs.getInt("id"),
                             rs.getString("season_id"),
+                            preObj,
                             rs.getInt("round_order"),
                             rs.getString("round_number"),
                             rs.getString("status"),
@@ -620,6 +719,35 @@ public class InMemoryStore {
                             aps.addBatch();
                         }
                         aps.executeBatch();
+                    }
+                }
+
+                // Kiểm tra nếu đã hoàn thành đủ 3 bài của vòng này -> chuyển vòng sang COMPLETED
+                // và TỰ ĐỘNG MỞ KHÓA vòng tiếp theo liên kết qua prerequisite_round_id
+                try (PreparedStatement checkPs = conn.prepareStatement(
+                        "SELECT COUNT(DISTINCT exam_order) AS done_cnt, COALESCE(SUM(score), 0) AS total_round_score FROM attempts WHERE user_id = ? AND round_id = ? AND mode = 'exam'")) {
+                    checkPs.setInt(1, userId);
+                    checkPs.setInt(2, result.getRoundId());
+                    try (ResultSet crs = checkPs.executeQuery()) {
+                        if (crs.next() && crs.getInt("done_cnt") >= 3) {
+                            int roundScore = crs.getInt("total_round_score");
+                            try (PreparedStatement upRound = conn.prepareStatement(
+                                    "UPDATE rounds SET status = 'COMPLETED' WHERE id = ?")) {
+                                upRound.setInt(1, result.getRoundId());
+                                upRound.executeUpdate();
+                            }
+                            try (PreparedStatement unlockNext = conn.prepareStatement(
+                                    "UPDATE rounds SET status = 'IN_PROGRESS', is_open = TRUE WHERE prerequisite_round_id = ? AND status = 'LOCKED'")) {
+                                unlockNext.setInt(1, result.getRoundId());
+                                unlockNext.executeUpdate();
+                            }
+                            try (PreparedStatement upSeason = conn.prepareStatement(
+                                    "UPDATE seasons SET highest_score = GREATEST(highest_score, ?) WHERE id = ?")) {
+                                upSeason.setInt(1, roundScore);
+                                upSeason.setString(2, result.getSeasonId() != null ? result.getSeasonId() : "2026-2027");
+                                upSeason.executeUpdate();
+                            }
+                        }
                     }
                 }
             } catch (Exception e) {

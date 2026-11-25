@@ -3,9 +3,10 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useLayoutEffect } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import {
   ImageBackground,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,13 +23,15 @@ import ErrorView from '../../components/ErrorView';
 import { CircleButton, GameButton, WoodLabel } from '../../components/game';
 import LoadingView from '../../components/LoadingView';
 import { Animated, Float, PopIn, listEntering } from '../../components/motion';
+import TextField from '../../components/TextField';
 import { useAuth } from '../../hooks/useAuth';
 import { useResponsive } from '../../hooks/useResponsive';
 import type { UserStackParamList, UserTabParamList } from '../../navigation/types';
+import { getErrorMessage } from '../../services/http';
 import { subscribeToStore } from '../../services/mock/data';
 import { queryErrorMessage, useGetMyResultsQuery } from '../../store/api';
 import { colors, gameColors, gameFonts, spacing } from '../../theme';
-import { confirm } from '../../utils/confirm';
+import { confirm, showAlert } from '../../utils/confirm';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<UserTabParamList, 'Profile'>,
@@ -41,11 +44,109 @@ function formatRoleLabel(role?: string): string {
   return 'Học sinh';
 }
 
+const GENDER_OPTIONS = ['Nam', 'Nữ', 'Khác'] as const;
+
 export default function ProfileScreen({ navigation }: Props) {
-  const { user, logout } = useAuth();
+  const { user, updateProfile, changePassword, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const { isLandscape, isTablet } = useResponsive();
   const { data: results, isLoading, error, refetch } = useGetMyResultsQuery();
+
+  // State cho Modal Chỉnh sửa thông tin cá nhân (Họ tên, giới tính, ngày sinh, lớp học)
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editFullName, setEditFullName] = useState(user?.fullName ?? 'Nguyễn Văn An');
+  const [editGender, setEditGender] = useState(user?.gender ?? 'Nam');
+  const [editBirthDate, setEditBirthDate] = useState(user?.birthDate ?? '15/05/2015');
+  const [editClassName, setEditClassName] = useState(user?.className ?? 'Lớp 5A');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // State cho Modal Đổi mật khẩu riêng biệt
+  const [pwdModalVisible, setPwdModalVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [savingPwd, setSavingPwd] = useState(false);
+
+  const handleOpenEditModal = () => {
+    setEditFullName(user?.fullName ?? 'Nguyễn Văn An');
+    setEditGender(user?.gender ?? 'Nam');
+    setEditBirthDate(user?.birthDate ?? '15/05/2015');
+    setEditClassName(user?.className ?? 'Lớp 5A');
+    setEditError(null);
+    setEditModalVisible(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editFullName.trim()) {
+      setEditError('Họ và tên không được để trống.');
+      return;
+    }
+    if (!editBirthDate.trim()) {
+      setEditError('Vui lòng nhập ngày tháng năm sinh (ví dụ: 15/05/2015).');
+      return;
+    }
+    if (!editClassName.trim()) {
+      setEditError('Vui lòng nhập lớp học (ví dụ: Lớp 5A).');
+      return;
+    }
+
+    setSavingProfile(true);
+    setEditError(null);
+    try {
+      await updateProfile({
+        fullName: editFullName.trim(),
+        gender: editGender,
+        birthDate: editBirthDate.trim(),
+        className: editClassName.trim(),
+      });
+      setSavingProfile(false);
+      setEditModalVisible(false);
+      void showAlert('Thành công', 'Đã cập nhật thông tin cá nhân của bạn!');
+    } catch (e) {
+      setEditError(getErrorMessage(e));
+      setSavingProfile(false);
+    }
+  };
+
+  const handleOpenPwdModal = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setPwdError(null);
+    setPwdModalVisible(true);
+  };
+
+  const handleSavePassword = async () => {
+    if (!currentPassword) {
+      setPwdError('Vui lòng nhập mật khẩu hiện tại.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPwdError('Mật khẩu mới phải có tối thiểu 6 ký tự.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPwdError('Mật khẩu mới nhập lại không khớp.');
+      return;
+    }
+
+    setSavingPwd(true);
+    setPwdError(null);
+    try {
+      await changePassword({
+        currentPassword,
+        newPassword,
+      });
+      setSavingPwd(false);
+      setPwdModalVisible(false);
+      void showAlert('Thành công', 'Đã đổi mật khẩu thành công!');
+    } catch (e) {
+      setPwdError(getErrorMessage(e));
+      setSavingPwd(false);
+    }
+  };
 
   // Ẩn thanh header mặc định của Tab để hiển thị trọn vẹn nền trời của Home.png giống Trang chủ
   useLayoutEffect(() => {
@@ -88,10 +189,24 @@ export default function ProfileScreen({ navigation }: Props) {
   }
 
   const list = results ?? [];
-  const attemptCount = list.length;
+  // Gom nhóm kết quả theo từng vòng thi (roundId): điểm vòng = tổng điểm 3 bài trong vòng (thang 300), khớp 100% với HistoryScreen
+  const roundScoresMap = new Map<number, number>();
+  const seenRoundExams = new Set<string>();
+  for (const item of list) {
+    const examKey = `${item.roundId}-${(item as any).examId ?? (item as any).examOrder ?? item.attemptId}`;
+    if (seenRoundExams.has(examKey)) continue;
+    seenRoundExams.add(examKey);
+    roundScoresMap.set(item.roundId, (roundScoresMap.get(item.roundId) ?? 0) + item.score);
+  }
+  const roundScores = Array.from(roundScoresMap.values());
+  const attemptCount = roundScores.length;
   const averageScore =
     attemptCount > 0
-      ? (Math.round((list.reduce((sum, item) => sum + item.score, 0) / attemptCount) * 10) / 10).toFixed(1)
+      ? (
+          Math.round(
+            (roundScores.reduce((sum, score) => sum + score, 0) / attemptCount) * 10,
+          ) / 10
+        ).toFixed(1)
       : '—';
 
   const roleLabel = formatRoleLabel(user?.role);
@@ -115,11 +230,9 @@ export default function ProfileScreen({ navigation }: Props) {
         <YStack alignItems="center" gap={4}>
           <XStack alignItems="center" gap={6}>
             <Emoji name="sparkles" size={20} />
-            <Text style={styles.fullNameText}>{user?.fullName ?? 'Người dùng'}</Text>
+            <Text style={styles.fullNameText}>{user?.fullName ?? 'Nguyễn Văn An'}</Text>
             <Emoji name="sparkles" size={20} />
           </XStack>
-
-          <Text style={styles.usernameText}>@{user?.username ?? 'user'}</Text>
 
           <View style={styles.rolePill}>
             <Ionicons name="school" size={14} color="#1d4ed8" />
@@ -129,22 +242,38 @@ export default function ProfileScreen({ navigation }: Props) {
 
         <View style={styles.divider} />
 
-        {/* Chi tiết thông tin tài khoản */}
+        {/* Chi tiết thông tin cá nhân */}
         <YStack gap={10} width="100%">
           <View style={styles.infoRow}>
             <View style={styles.infoLabelRow}>
               <Ionicons name="person-circle-outline" size={18} color="#2563eb" />
               <Text style={styles.infoLabel}>Họ và tên</Text>
             </View>
-            <Text style={styles.infoValue}>{user?.fullName ?? '—'}</Text>
+            <Text style={styles.infoValue}>{user?.fullName ?? 'Nguyễn Văn An'}</Text>
           </View>
 
           <View style={styles.infoRow}>
             <View style={styles.infoLabelRow}>
-              <Ionicons name="at-circle-outline" size={18} color="#f97316" />
-              <Text style={styles.infoLabel}>Tên đăng nhập</Text>
+              <Ionicons name="male-female-outline" size={18} color="#8b5cf6" />
+              <Text style={styles.infoLabel}>Giới tính</Text>
             </View>
-            <Text style={styles.infoValue}>{user?.username ?? '—'}</Text>
+            <Text style={styles.infoValue}>{user?.gender ?? 'Nam'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <View style={styles.infoLabelRow}>
+              <Ionicons name="calendar-outline" size={18} color="#f97316" />
+              <Text style={styles.infoLabel}>Ngày sinh</Text>
+            </View>
+            <Text style={styles.infoValue}>{user?.birthDate ?? '15/05/2015'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <View style={styles.infoLabelRow}>
+              <Ionicons name="school-outline" size={18} color="#0284c7" />
+              <Text style={styles.infoLabel}>Lớp học</Text>
+            </View>
+            <Text style={styles.infoValue}>{user?.className ?? 'Lớp 5A'}</Text>
           </View>
 
           <View style={styles.infoRow}>
@@ -155,6 +284,33 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={[styles.infoValue, styles.infoValueHighlight]}>{roleLabel}</Text>
           </View>
         </YStack>
+
+        {/* 2 nút riêng biệt: Chỉnh sửa thông tin cá nhân & Đổi mật khẩu */}
+        <XStack gap={10} width="100%">
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleOpenEditModal}
+            style={({ pressed }) => [
+              styles.editProfileBtn,
+              pressed && { opacity: 0.88 },
+            ]}
+          >
+            <Ionicons name="create-outline" size={16} color="#1d4ed8" />
+            <Text style={styles.editProfileBtnText}>Chỉnh sửa thông tin</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleOpenPwdModal}
+            style={({ pressed }) => [
+              styles.changePwdBtn,
+              pressed && { opacity: 0.88 },
+            ]}
+          >
+            <Ionicons name="key-outline" size={16} color="#c2410c" />
+            <Text style={styles.changePwdBtnText}>Đổi mật khẩu</Text>
+          </Pressable>
+        </XStack>
       </Card>
     </Animated.View>
   );
@@ -209,10 +365,10 @@ export default function ProfileScreen({ navigation }: Props) {
               <EmojiBadge name="partyPopper" tone="mint" size={46} />
               <View style={styles.summaryTextCol}>
                 <Text style={styles.summaryTitle}>
-                  Đã hoàn thành {attemptCount} lượt thi!
+                  Đã tham gia {attemptCount} vòng thi!
                 </Text>
                 <Text style={styles.summarySub}>
-                  Điểm trung bình hiện tại: <Text style={styles.summaryHighlight}>{averageScore} điểm</Text>. Xem lại chi tiết từng bài tại mục Lịch sử.
+                  Điểm trung bình vòng: <Text style={styles.summaryHighlight}>{averageScore}/300 điểm</Text>. Xem lại chi tiết từng vòng tại mục Lịch sử.
                 </Text>
               </View>
             </View>
@@ -290,6 +446,159 @@ export default function ProfileScreen({ navigation }: Props) {
           </>
         )}
       </ScrollView>
+
+      {/* Modal 1: Chỉnh sửa thông tin cá nhân (Họ tên, giới tính, ngày sinh, lớp học) */}
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setEditModalVisible(false)}
+        >
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <WoodLabel text="Chỉnh sửa thông tin cá nhân" fontSize={16} />
+
+            <YStack width="100%" gap={12}>
+              <TextField
+                label="Họ và tên"
+                value={editFullName}
+                onChangeText={setEditFullName}
+                placeholder="Nhập họ và tên của bạn"
+                autoCapitalize="words"
+              />
+
+              <YStack gap={6}>
+                <Text style={styles.fieldLabel}>Giới tính</Text>
+                <View style={styles.genderRow}>
+                  {GENDER_OPTIONS.map((g) => {
+                    const active = editGender === g;
+                    return (
+                      <Pressable
+                        key={g}
+                        accessibilityRole="button"
+                        onPress={() => setEditGender(g)}
+                        style={[
+                          styles.genderPill,
+                          active && styles.genderPillActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.genderPillText,
+                            active && styles.genderPillTextActive,
+                          ]}
+                        >
+                          {g}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </YStack>
+
+              <TextField
+                label="Ngày tháng năm sinh (DD/MM/YYYY)"
+                value={editBirthDate}
+                onChangeText={setEditBirthDate}
+                placeholder="Ví dụ: 15/05/2015"
+              />
+
+              <TextField
+                label="Lớp học"
+                value={editClassName}
+                onChangeText={setEditClassName}
+                placeholder="Ví dụ: Lớp 5A"
+              />
+
+              {editError ? (
+                <Text style={styles.editErrorText}>{editError}</Text>
+              ) : null}
+
+              <XStack gap={10} marginTop={4}>
+                <View style={styles.modalBtnHalf}>
+                  <Button
+                    title="Hủy"
+                    variant="secondary"
+                    onPress={() => setEditModalVisible(false)}
+                  />
+                </View>
+                <View style={styles.modalBtnHalf}>
+                  <Button
+                    title="Lưu thông tin"
+                    onPress={handleSaveProfile}
+                    loading={savingProfile}
+                  />
+                </View>
+              </XStack>
+            </YStack>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal 2: Đổi mật khẩu riêng biệt */}
+      <Modal
+        visible={pwdModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPwdModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setPwdModalVisible(false)}
+        >
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <WoodLabel text="Đổi mật khẩu" fontSize={16} />
+
+            <YStack width="100%" gap={12}>
+              <TextField
+                label="Mật khẩu hiện tại"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="Nhập mật khẩu đang dùng"
+                secureTextEntry
+              />
+              <TextField
+                label="Mật khẩu mới"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="Tối thiểu 6 ký tự"
+                secureTextEntry
+              />
+              <TextField
+                label="Nhập lại mật khẩu mới"
+                value={confirmNewPassword}
+                onChangeText={setConfirmNewPassword}
+                placeholder="Nhập lại mật khẩu mới"
+                secureTextEntry
+              />
+
+              {pwdError ? (
+                <Text style={styles.editErrorText}>{pwdError}</Text>
+              ) : null}
+
+              <XStack gap={10} marginTop={4}>
+                <View style={styles.modalBtnHalf}>
+                  <Button
+                    title="Hủy"
+                    variant="secondary"
+                    onPress={() => setPwdModalVisible(false)}
+                  />
+                </View>
+                <View style={styles.modalBtnHalf}>
+                  <Button
+                    title="Cập nhật mật khẩu"
+                    onPress={handleSavePassword}
+                    loading={savingPwd}
+                  />
+                </View>
+              </XStack>
+            </YStack>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ImageBackground>
   );
 }
@@ -434,6 +743,101 @@ const styles = StyleSheet.create({
   },
   infoValueHighlight: {
     color: '#16a34a',
+  },
+  editProfileBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#eff6ff',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#93c5fd',
+    paddingVertical: 10,
+    marginTop: 2,
+  },
+  editProfileBtnText: {
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 12,
+    color: '#1d4ed8',
+  },
+  changePwdBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#fff7ed',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#fdba74',
+    paddingVertical: 10,
+    marginTop: 2,
+  },
+  changePwdBtnText: {
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 12,
+    color: '#c2410c',
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  genderRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  genderPill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  genderPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  genderPillText: {
+    fontFamily: gameFonts.bodyExtraBold,
+    fontSize: 13,
+    color: '#475569',
+  },
+  genderPillTextActive: {
+    color: '#ffffff',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#fffdf8',
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: '#bfdbfe',
+    padding: 18,
+    alignItems: 'center',
+    gap: 14,
+    boxShadow: '0px 4px 0px 0px #60a5fa',
+  },
+  modalBtnHalf: {
+    flex: 1,
+  },
+  editErrorText: {
+    fontFamily: gameFonts.bodyBold,
+    fontSize: 12,
+    color: colors.danger,
+    textAlign: 'center',
   },
   statCard: {
     flex: 1,
