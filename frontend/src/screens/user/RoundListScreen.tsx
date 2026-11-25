@@ -33,6 +33,7 @@ import {
   mockRounds,
   seasons,
   subscribeToStore,
+  syncUserDataFromBackend,
   type Exam,
   type ExamAttempt,
   type SeasonRound,
@@ -77,6 +78,7 @@ export default function RoundListScreen({ navigation, route }: Props) {
 
   useFocusEffect(
     useCallback(() => {
+      void syncUserDataFromBackend();
       setAttempts([...getRuntimeAttempts()]);
       const focusRoundId = (route.params as any)?.focusRoundId;
       if (focusRoundId) {
@@ -94,8 +96,9 @@ export default function RoundListScreen({ navigation, route }: Props) {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    await syncUserDataFromBackend();
     setAttempts([...getRuntimeAttempts()]);
-    setTimeout(() => setRefreshing(false), 300);
+    setRefreshing(false);
   };
 
   const toggleExpand = (roundId: number) => {

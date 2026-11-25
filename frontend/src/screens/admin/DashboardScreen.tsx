@@ -36,7 +36,7 @@ export default function DashboardScreen({ navigation }: Props) {
         fontWeight={typography.heading.fontWeight}
         color={colors.text}
       >
-        Xin chào, {user?.fullName}
+        Xin chào, {user?.fullName} ({user?.role === 'TEACHER' ? 'Giáo viên' : 'Quản trị viên'})
       </Text>
 
       <Animated.View entering={listEntering(0)}>

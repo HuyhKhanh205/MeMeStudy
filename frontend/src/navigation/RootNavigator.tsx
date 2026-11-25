@@ -15,7 +15,7 @@ export default function RootNavigator() {
     <NavigationContainer>
       {status !== 'authenticated' || !user ? (
         <AuthStack />
-      ) : user.role === 'ADMIN' ? (
+      ) : user.role === 'ADMIN' || user.role === 'TEACHER' ? (
         <AdminStack />
       ) : (
         <UserTabs />
