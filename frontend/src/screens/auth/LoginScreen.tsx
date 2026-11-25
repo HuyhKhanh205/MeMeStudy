@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import Button from '../../components/Button';
 import Emoji from '../../components/Emoji';
@@ -10,17 +10,30 @@ import TextField from '../../components/TextField';
 import { useAuth } from '../../hooks/useAuth';
 import type { AuthStackParamList } from '../../navigation/types';
 import { getErrorMessage } from '../../services/http';
-import { colors, spacing, typography } from '../../theme';
-import { config } from '../../utils/config';
+import { colors, radius, spacing, typography } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+type LoginRoleTab = 'STUDENT' | 'TEACHER';
 
 export default function LoginScreen({ navigation }: Props) {
   const { login } = useAuth();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [roleTab, setRoleTab] = useState<LoginRoleTab>('STUDENT');
+  const [username, setUsername] = useState('user');
+  const [password, setPassword] = useState('123456');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleSelectRoleTab = (tab: LoginRoleTab) => {
+    setRoleTab(tab);
+    setError(null);
+    if (tab === 'STUDENT') {
+      setUsername('user');
+      setPassword('123456');
+    } else {
+      setUsername('teacher');
+      setPassword('123456');
+    }
+  };
 
   const handleSubmit = async () => {
     if (!username.trim() || !password) {
@@ -43,9 +56,9 @@ export default function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen scroll edges={['top', 'left', 'right', 'bottom']} contentStyle={styles.content}>
-        <YStack gap={spacing.xs} marginBottom={spacing.md}>
+        <YStack gap={spacing.xs} marginBottom={spacing.xs}>
           <Float style={styles.mascot} distance={8}>
-            <Emoji name="owl" size={104} />
+            <Emoji name="owl" size={96} />
           </Float>
           <XStack alignItems="center" justifyContent="center" gap={spacing.sm}>
             {/* ✨ lấp lánh lệch nhịp hai bên tên app. */}
@@ -70,15 +83,56 @@ export default function LoginScreen({ navigation }: Props) {
             color={colors.textMuted}
             textAlign="center"
           >
-            Đăng nhập để bắt đầu làm bài thi
+            Chọn tư cách đăng nhập để bắt đầu
           </Text>
         </YStack>
 
+        {/* Bộ chọn tư cách đăng nhập: Học sinh hoặc Giáo viên */}
+        <View style={styles.roleTabsRow}>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: roleTab === 'STUDENT' }}
+            onPress={() => handleSelectRoleTab('STUDENT')}
+            style={[
+              styles.roleTabBtn,
+              roleTab === 'STUDENT' && styles.roleTabBtnActive,
+            ]}
+          >
+            <Emoji name="graduationCap" size={22} />
+            <Text
+              fontSize={typography.label.fontSize}
+              fontWeight="700"
+              color={roleTab === 'STUDENT' ? colors.white : colors.text}
+            >
+              Học sinh
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: roleTab === 'TEACHER' }}
+            onPress={() => handleSelectRoleTab('TEACHER')}
+            style={[
+              styles.roleTabBtn,
+              roleTab === 'TEACHER' && styles.roleTabBtnActive,
+            ]}
+          >
+            <Emoji name="books" size={22} />
+            <Text
+              fontSize={typography.label.fontSize}
+              fontWeight="700"
+              color={roleTab === 'TEACHER' ? colors.white : colors.text}
+            >
+              Giáo viên
+            </Text>
+          </Pressable>
+        </View>
+
         <TextField
-          label="Tên đăng nhập"
+          label={roleTab === 'STUDENT' ? 'Tên đăng nhập Học sinh' : 'Tên đăng nhập Giáo viên'}
           value={username}
           onChangeText={setUsername}
-          placeholder="username"
+          placeholder={roleTab === 'STUDENT' ? 'user' : 'teacher'}
           textContentType="username"
           autoComplete="username"
           returnKeyType="next"
@@ -105,23 +159,31 @@ export default function LoginScreen({ navigation }: Props) {
           </Text>
         ) : null}
 
-        <Button title="Đăng nhập" onPress={handleSubmit} loading={submitting} />
+        <Button
+          title={
+            roleTab === 'STUDENT'
+              ? 'Đăng nhập với tư cách Học sinh'
+              : 'Đăng nhập với tư cách Giáo viên'
+          }
+          onPress={handleSubmit}
+          loading={submitting}
+        />
         <Button
           title="Chưa có tài khoản? Đăng ký"
           variant="ghost"
           onPress={() => navigation.navigate('Register')}
         />
 
-        {config.useMock ? (
-          <Text
-            fontSize={typography.caption.fontSize}
-            fontWeight={typography.caption.fontWeight}
-            color={colors.textMuted}
-            textAlign="center"
-          >
-            Chế độ mock — tài khoản: user / 123456 hoặc admin / 123456
-          </Text>
-        ) : null}
+        <Text
+          fontSize={typography.caption.fontSize}
+          fontWeight={typography.caption.fontWeight}
+          color={colors.textMuted}
+          textAlign="center"
+        >
+          {roleTab === 'STUDENT'
+            ? 'Tài khoản Học sinh mẫu: user / 123456'
+            : 'Tài khoản Giáo viên mẫu: teacher / 123456 (hoặc admin / 123456)'}
+        </Text>
       </Screen>
     </KeyboardAvoidingView>
   );
@@ -140,6 +202,26 @@ const styles = StyleSheet.create({
   },
   mascot: {
     alignSelf: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  roleTabsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    backgroundColor: colors.primaryLight,
+    padding: 6,
+    borderRadius: radius.lg,
+  },
+  roleTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    backgroundColor: 'transparent',
+  },
+  roleTabBtnActive: {
+    backgroundColor: colors.primary,
   },
 });

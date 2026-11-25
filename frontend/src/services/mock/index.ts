@@ -10,7 +10,9 @@ import type {
   SubmitRequest,
   User,
 } from '../../types';
+import { config } from '../../utils/config';
 import { tokenStorage } from '../../utils/tokenStorage';
+import { http } from '../http';
 import {
   getRuntimeAttempts,
   mockAccounts,
@@ -19,6 +21,7 @@ import {
   mockQuestionsData,
   mockRounds,
   saveRuntimeAttempt,
+  syncUserDataFromBackend,
   type ExamAttempt,
   type MockQuestionItem,
   type SeasonRound,
@@ -71,12 +74,13 @@ export const mockApi = {
     return { token: tokenFor(account.user), user: account.user };
   },
 
-  async register({ username, password, fullName }: RegisterRequest): Promise<AuthResponse> {
+  async register({ username, password, fullName, role }: RegisterRequest): Promise<AuthResponse> {
     await delay();
     if (mockAccounts.some((a) => a.user.username === username.trim())) {
       throw new ApiError('Tên đăng nhập đã tồn tại.', 409);
     }
-    const user: User = { id: nextUserId++, username: username.trim(), fullName, role: 'USER' };
+    const nextRole = role === 'TEACHER' || role === 'ADMIN' ? role : 'USER';
+    const user: User = { id: nextUserId++, username: username.trim(), fullName, role: nextRole };
     mockAccounts.push({ password, user });
     return { token: tokenFor(user), user };
   },
@@ -93,8 +97,17 @@ export const mockApi = {
 
   /**
    * Bắt đầu một lượt làm bài thi (hỗ trợ truyền examId cụ thể trong vòng)
+   * Nếu EXPO_PUBLIC_USE_MOCK=false, gọi trực tiếp Backend MariaDB API.
    */
   async startAttempt(roundId: number, targetExamId?: number): Promise<Attempt> {
+    if (!config.useMock) {
+      try {
+        const query = targetExamId != null ? `?examId=${targetExamId}` : '';
+        return await http.post<Attempt>(`/rounds/${roundId}/attempts${query}`);
+      } catch {
+        // Fallback nếu mất kết nối tạm thời
+      }
+    }
     await delay(200);
     const user = await currentUser();
     const round = mockRounds.find((r) => r.id === roundId);
@@ -147,13 +160,26 @@ export const mockApi = {
   },
 
   /**
-   * Nộp bài thi: chấm điểm (thang 100, mỗi câu đúng = 10đ), lưu vào store và trả về AttemptResult
+   * Nộp bài thi: chấm điểm (thang 100, mỗi câu đúng = 10đ), lưu vào MariaDB / store và trả về AttemptResult
    */
   async submitAttempt(
     attemptId: number,
     body: SubmitRequest,
     meta?: { durationSeconds?: number; mode?: 'exam' | 'practice' }
   ): Promise<AttemptResult> {
+    if (!config.useMock) {
+      try {
+        const serverResult = await http.post<AttemptResult>(`/attempts/${attemptId}/submit`, {
+          ...body,
+          durationSeconds: meta?.durationSeconds,
+          mode: meta?.mode ?? 'exam',
+        });
+        await syncUserDataFromBackend();
+        return serverResult;
+      } catch {
+        // Fallback chấm điểm cục bộ nếu mạng gián đoạn
+      }
+    }
     await delay(300);
     const user = await currentUser();
     const attempt = activeAttempts.get(attemptId);

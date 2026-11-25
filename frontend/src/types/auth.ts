@@ -1,4 +1,4 @@
-export type Role = 'USER' | 'ADMIN';
+export type Role = 'USER' | 'TEACHER' | 'ADMIN';
 
 export interface User {
   id: number;
@@ -16,6 +16,7 @@ export interface RegisterRequest {
   username: string;
   password: string;
   fullName: string;
+  role?: Role;
 }
 
 export interface AuthResponse {

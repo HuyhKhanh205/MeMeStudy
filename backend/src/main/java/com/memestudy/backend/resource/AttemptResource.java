@@ -25,10 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * REST Resource quản lý Lịch sử lượt thi & Nộp bài (/attempts)
- * - GET /api/attempts: trả về danh sách AttemptResult[] của user hiện tại (dùng cho useGetMyResultsQuery trên ProfileScreen FE-6 và HistoryScreen)
- * - POST /api/attempts/{attemptId}/submit: chấm điểm và lưu kết quả lượt thi
- * - GET /api/attempts/{attemptId}/review: xem lại chi tiết câu hỏi & đáp án của lượt thi
+ * REST Resource quản lý Lịch sử lượt thi & Nộp bài (/attempts) kết nối MariaDB.
  */
 @Path("/attempts")
 @Produces(MediaType.APPLICATION_JSON)
@@ -101,15 +98,24 @@ public class AttemptResource {
         int totalQuestions = attempt.getQuestions().isEmpty() ? 10 : attempt.getQuestions().size();
         int score = correctCount * 10; // Thang điểm 100 (mỗi câu đúng = 10 điểm)
         String submittedAt = Instant.now().toString();
+        Integer durationSecs = body != null && body.getDurationSeconds() != null ? body.getDurationSeconds() : 420;
+        String mode = body != null && body.getMode() != null ? body.getMode() : "exam";
 
         AttemptResultDto result = new AttemptResultDto(
                 attempt.getId(),
+                attempt.getUserId(),
+                attempt.getSeasonId() != null ? attempt.getSeasonId() : "2026-2027",
                 attempt.getRoundId(),
+                attempt.getExamId(),
                 attempt.getRoundTitle(),
+                attempt.getExamTitle() != null ? attempt.getExamTitle() : ("Bài " + attempt.getExamOrder()),
+                attempt.getExamOrder(),
                 score,
                 correctCount,
                 totalQuestions,
                 submittedAt,
+                durationSecs,
+                mode,
                 review
         );
 
@@ -141,14 +147,23 @@ public class AttemptResource {
         }
 
         List<Map<String, Object>> reviewDetails = new ArrayList<>();
-        List<QuestionDto> allQuestions = InMemoryStore.getQuestions();
+        int examId = found.getExamId() != null ? found.getExamId() : 201;
+        List<QuestionDto> examQuestions = InMemoryStore.getQuestionsForExam(examId);
         List<AttemptResultDto.QuestionReviewItem> reviewItems =
                 found.getReview() != null ? found.getReview() : List.of();
 
-        for (int i = 0; i < allQuestions.size(); i++) {
-            QuestionDto q = allQuestions.get(i);
-            AttemptResultDto.QuestionReviewItem item =
-                    i < reviewItems.size() ? reviewItems.get(i) : null;
+        for (int i = 0; i < examQuestions.size(); i++) {
+            QuestionDto q = examQuestions.get(i);
+            AttemptResultDto.QuestionReviewItem item = null;
+            for (AttemptResultDto.QuestionReviewItem ri : reviewItems) {
+                if (ri.getQuestionId() == q.getId()) {
+                    item = ri;
+                    break;
+                }
+            }
+            if (item == null && i < reviewItems.size()) {
+                item = reviewItems.get(i);
+            }
 
             Map<String, Object> row = new HashMap<>();
             row.put("questionId", q.getId());
@@ -163,4 +178,3 @@ public class AttemptResource {
         return Response.ok(ApiResponse.ok(reviewDetails)).build();
     }
 }
-

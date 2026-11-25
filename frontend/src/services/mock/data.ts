@@ -1,4 +1,6 @@
 import type { Question, Round, User } from '../../types';
+import { config } from '../../utils/config';
+import { http } from '../http';
 
 export interface MockAccount {
   password: string;
@@ -9,6 +11,7 @@ export interface MockAccount {
 export const mockAccounts: MockAccount[] = [
   { password: '123456', user: { id: 1, username: 'user', fullName: 'Nguyễn Văn A', role: 'USER' } },
   { password: '123456', user: { id: 2, username: 'admin', fullName: 'Quản trị viên', role: 'ADMIN' } },
+  { password: '123456', user: { id: 3, username: 'teacher', fullName: 'Cô Lan', role: 'TEACHER' } },
 ];
 
 /* ============================================================
@@ -955,4 +958,121 @@ export function saveRuntimeAttempt(newAttempt: ExamAttempt) {
   }
 
   notifyStore();
+}
+
+/**
+ * Đồng bộ toàn bộ dữ liệu thật từ Backend (MariaDB) qua endpoint GET /api/user-data
+ * cho các màn hình Học sinh (HomeScreen, RoundListScreen, ExamScreen, ResultScreen, HistoryScreen, ProfileScreen).
+ */
+export async function syncUserDataFromBackend(): Promise<void> {
+  if (config.useMock) return;
+  try {
+    const data = await http.get<{
+      student?: StudentInfo;
+      seasons?: Season[];
+      rounds?: SeasonRound[];
+      exams?: Exam[];
+      questions?: MockQuestionItem[];
+      attempts?: ExamAttempt[];
+      teacherAssignments?: TeacherAssignment[];
+    }>('/user-data');
+
+    if (!data) return;
+
+    if (data.student) {
+      Object.assign(studentInfo, data.student);
+    }
+
+    if (Array.isArray(data.seasons) && data.seasons.length > 0) {
+      seasons.splice(0, seasons.length, ...data.seasons);
+    }
+
+    if (Array.isArray(data.rounds) && data.rounds.length > 0) {
+      const mappedRounds: SeasonRound[] = data.rounds.map((r: any) => ({
+        id: r.id,
+        seasonId: r.seasonId ?? '2026-2027',
+        order: r.order ?? 1,
+        roundNumber: r.roundNumber ?? String(r.order ?? r.id).padStart(2, '0'),
+        title: r.title,
+        description: r.description ?? '',
+        durationMinutes: r.durationMinutes ?? 15,
+        questionCount: r.questionCount ?? 30,
+        isOpen: Boolean(r.isOpen),
+        status: r.status ?? (r.isOpen ? 'IN_PROGRESS' : 'LOCKED'),
+        questionIds: r.questionIds ?? [],
+      }));
+      mockRounds.splice(0, mockRounds.length, ...mappedRounds);
+    }
+
+    if (Array.isArray(data.exams) && data.exams.length > 0) {
+      const mappedExams: Exam[] = data.exams.map((ex: any) => ({
+        id: ex.id,
+        roundId: ex.roundId,
+        order: ex.order ?? 1,
+        title: ex.title,
+        questionCount: ex.questionCount ?? 10,
+        durationMinutes: ex.durationMinutes ?? 15,
+        questionIds: ex.questionIds ?? [],
+      }));
+      mockExams.splice(0, mockExams.length, ...mappedExams);
+    }
+
+    if (Array.isArray(data.questions) && data.questions.length > 0) {
+      const mappedQuestions: MockQuestionItem[] = data.questions.map((q: any) => {
+        const choices: { id: number; content: string }[] = Array.isArray(q.choices)
+          ? q.choices
+          : [];
+        const options =
+          Array.isArray(q.options) && q.options.length > 0
+            ? q.options
+            : choices.map((c) => c.content);
+        const correctChoiceId = q.correctChoiceId ?? choices[0]?.id ?? 0;
+        const foundIdx = choices.findIndex((c) => c.id === correctChoiceId);
+        const correctIndex = q.correctIndex ?? (foundIdx >= 0 ? foundIdx : 0);
+
+        return {
+          id: q.id,
+          examId: q.examId ?? 201,
+          type: q.type ?? 'TEXT',
+          content: q.content,
+          options,
+          correctIndex,
+          audioUrl: q.audioUrl ?? undefined,
+          imageUrl: q.imageUrl ?? undefined,
+          explanation: q.explanation ?? '',
+          choices,
+          correctChoiceId,
+        };
+      });
+      mockQuestionsData.splice(0, mockQuestionsData.length, ...mappedQuestions);
+    }
+
+    if (Array.isArray(data.teacherAssignments) && data.teacherAssignments.length > 0) {
+      teacherAssignments.splice(0, teacherAssignments.length, ...data.teacherAssignments);
+    }
+
+    if (Array.isArray(data.attempts)) {
+      runtimeAttempts = data.attempts.map((a: any) => ({
+        id: a.id ?? a.attemptId,
+        userId: a.userId ?? 1,
+        seasonId: a.seasonId ?? '2026-2027',
+        roundId: a.roundId,
+        examId: a.examId ?? 101,
+        roundTitle: a.roundTitle ?? 'Vòng thi',
+        examTitle: a.examTitle ?? `Bài ${a.examOrder ?? 1}`,
+        examOrder: a.examOrder ?? 1,
+        score: a.score ?? 0,
+        correctCount: a.correctCount ?? 0,
+        totalQuestions: a.totalQuestions ?? 10,
+        submittedAt: a.submittedAt ?? new Date().toISOString(),
+        durationSeconds: a.durationSeconds ?? 420,
+        mode: a.mode ?? 'exam',
+        review: a.review,
+      }));
+    }
+
+    notifyStore();
+  } catch {
+    // Giữ nguyên dữ liệu hiện có trong store nếu đang offline
+  }
 }

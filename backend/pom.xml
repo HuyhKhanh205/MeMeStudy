@@ -20,10 +20,18 @@
         <jersey.version>3.1.9</jersey.version>
         <hibernate.version>6.4.4.Final</hibernate.version>
         <h2.version>2.2.224</h2.version>
+        <mariadb.version>3.4.1</mariadb.version>
         <tomcat.version>10.1.33</tomcat.version>
     </properties>
 
     <dependencies>
+        <!-- MariaDB JDBC Driver -->
+        <dependency>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
+            <version>${mariadb.version}</version>
+        </dependency>
+
         <!-- Embedded Apache Tomcat 10.1 (Jakarta EE 10 / Servlet 6.0) -->
         <dependency>
             <groupId>org.apache.tomcat.embed</groupId>

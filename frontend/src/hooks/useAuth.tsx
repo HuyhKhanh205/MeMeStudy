@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { authService } from '../services/authService';
 import { setUnauthorizedHandler } from '../services/http';
+import { syncUserDataFromBackend } from '../services/mock/data';
 import { useAppDispatch } from '../store';
 import { api } from '../store/api';
 import type { AuthResponse, LoginRequest, RegisterRequest, User } from '../types';
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const startSession = useCallback(async ({ token, user: nextUser }: AuthResponse) => {
     await tokenStorage.set(token);
+    await syncUserDataFromBackend();
     setUser(nextUser);
     setStatus('authenticated');
   }, []);
@@ -57,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       try {
         const me = await authService.me();
+        await syncUserDataFromBackend();
         if (!cancelled) {
           setUser(me);
           setStatus('authenticated');

@@ -13,15 +13,16 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * REST Resource quản lý danh sách Vòng thi (/rounds) và bắt đầu lượt thi (/rounds/{id}/attempts)
- * Phục vụ HomeScreen, RoundListScreen, ExamScreen, ExamListScreen, DashboardScreen.
+ * Kết nối dữ liệu thật từ MariaDB.
  */
 @Path("/rounds")
 @Produces(MediaType.APPLICATION_JSON)
@@ -49,6 +50,7 @@ public class RoundResource {
     @Path("/{roundId}/attempts")
     public Response startAttempt(
             @PathParam("roundId") int roundId,
+            @QueryParam("examId") Integer examId,
             @HeaderParam(HttpHeaders.AUTHORIZATION) String authHeader
     ) {
         Integer userId = JwtUtil.parseUserIdFromHeader(authHeader);
@@ -69,12 +71,15 @@ public class RoundResource {
                     .build();
         }
 
-        AttemptDto attempt = InMemoryStore.createAttempt(user.getId(), round);
+        AttemptDto attempt = InMemoryStore.createAttempt(user.getId(), round, examId);
 
-        Map<String, Object> payload = new HashMap<>();
+        Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("id", attempt.getId());
         payload.put("roundId", attempt.getRoundId());
+        payload.put("examId", attempt.getExamId());
+        payload.put("examOrder", attempt.getExamOrder());
         payload.put("roundTitle", attempt.getRoundTitle());
+        payload.put("examTitle", attempt.getExamTitle());
         payload.put("status", attempt.getStatus());
         payload.put("startedAt", attempt.getStartedAt());
         payload.put("expiresAt", attempt.getExpiresAt());
@@ -83,4 +88,3 @@ public class RoundResource {
         return Response.status(Response.Status.CREATED).entity(ApiResponse.ok(payload)).build();
     }
 }
-

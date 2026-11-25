@@ -24,6 +24,7 @@ import {
   getRuntimeAttempts,
   seasons,
   subscribeToStore,
+  syncUserDataFromBackend,
   type ExamAttempt,
   type Season,
 } from '../../services/mock/data';
@@ -72,6 +73,7 @@ export default function HistoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void syncUserDataFromBackend();
       setAttempts([...getRuntimeAttempts()]);
       const unsub = subscribeToStore(() => {
         setAttempts([...getRuntimeAttempts()]);
@@ -82,8 +84,9 @@ export default function HistoryScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    await syncUserDataFromBackend();
     setAttempts([...getRuntimeAttempts()]);
-    setTimeout(() => setRefreshing(false), 300);
+    setRefreshing(false);
   };
 
   const selectedSeason: Season =

@@ -37,6 +37,7 @@ import {
   seasons,
   studentInfo,
   subscribeToStore,
+  syncUserDataFromBackend,
   teacherAssignments,
   type ExamAttempt,
   type PracticeCategory,
@@ -64,6 +65,7 @@ export default function HomeScreen({ navigation }: Props) {
   // Cập nhật lại khi màn hình được focus hoặc có thay đổi trong store
   useFocusEffect(
     useCallback(() => {
+      void syncUserDataFromBackend();
       setAttempts([...getRuntimeAttempts()]);
       const unsubscribe = subscribeToStore(() => {
         setAttempts([...getRuntimeAttempts()]);

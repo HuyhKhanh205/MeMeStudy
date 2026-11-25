@@ -5,8 +5,12 @@ import java.util.List;
 public class AttemptDto {
     private int id;
     private int userId;
+    private String seasonId;
     private int roundId;
+    private int examId;
+    private int examOrder;
     private String roundTitle;
+    private String examTitle;
     private String status; // "IN_PROGRESS" | "SUBMITTED"
     private String startedAt;
     private String expiresAt;
@@ -18,8 +22,12 @@ public class AttemptDto {
     public AttemptDto(
             int id,
             int userId,
+            String seasonId,
             int roundId,
+            int examId,
+            int examOrder,
             String roundTitle,
+            String examTitle,
             String status,
             String startedAt,
             String expiresAt,
@@ -27,8 +35,12 @@ public class AttemptDto {
     ) {
         this.id = id;
         this.userId = userId;
+        this.seasonId = seasonId;
         this.roundId = roundId;
+        this.examId = examId;
+        this.examOrder = examOrder;
         this.roundTitle = roundTitle;
+        this.examTitle = examTitle;
         this.status = status;
         this.startedAt = startedAt;
         this.expiresAt = expiresAt;
@@ -51,6 +63,14 @@ public class AttemptDto {
         this.userId = userId;
     }
 
+    public String getSeasonId() {
+        return seasonId;
+    }
+
+    public void setSeasonId(String seasonId) {
+        this.seasonId = seasonId;
+    }
+
     public int getRoundId() {
         return roundId;
     }
@@ -59,12 +79,36 @@ public class AttemptDto {
         this.roundId = roundId;
     }
 
+    public int getExamId() {
+        return examId;
+    }
+
+    public void setExamId(int examId) {
+        this.examId = examId;
+    }
+
+    public int getExamOrder() {
+        return examOrder;
+    }
+
+    public void setExamOrder(int examOrder) {
+        this.examOrder = examOrder;
+    }
+
     public String getRoundTitle() {
         return roundTitle;
     }
 
     public void setRoundTitle(String roundTitle) {
         this.roundTitle = roundTitle;
+    }
+
+    public String getExamTitle() {
+        return examTitle;
+    }
+
+    public void setExamTitle(String examTitle) {
+        this.examTitle = examTitle;
     }
 
     public String getStatus() {
@@ -99,4 +143,3 @@ public class AttemptDto {
         this.questions = questions;
     }
 }
-

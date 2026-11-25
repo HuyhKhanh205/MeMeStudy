@@ -53,6 +53,7 @@ public class AuthResource {
         private String username;
         private String password;
         private String fullName;
+        private String role;
 
         public String getUsername() {
             return username;
@@ -76,6 +77,14 @@ public class AuthResource {
 
         public void setFullName(String fullName) {
             this.fullName = fullName;
+        }
+
+        public String getRole() {
+            return role;
+        }
+
+        public void setRole(String role) {
+            this.role = role;
         }
     }
 
@@ -132,7 +141,8 @@ public class AuthResource {
         UserDto user = InMemoryStore.registerUser(
                 body.getUsername(),
                 body.getPassword(),
-                body.getFullName()
+                body.getFullName(),
+                body.getRole()
         );
         String token = JwtUtil.generateToken(user);
 
