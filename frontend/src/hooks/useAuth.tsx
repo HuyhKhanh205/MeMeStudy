@@ -9,7 +9,11 @@ import {
 } from 'react';
 import { authService } from '../services/authService';
 import { setUnauthorizedHandler } from '../services/http';
-import { studentInfo, syncUserDataFromBackend } from '../services/mock/data';
+import {
+  setActiveUserForStore,
+  studentInfo,
+  syncUserDataFromBackend,
+} from '../services/mock/data';
 import { useAppDispatch } from '../store';
 import { api } from '../store/api';
 import type {
@@ -46,12 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await tokenStorage.clear();
     // Xoá cache RTK Query để tài khoản đăng nhập sau không thấy dữ liệu của tài khoản trước.
     dispatch(api.util.resetApiState());
+    setActiveUserForStore(null);
     setUser(null);
     setStatus('unauthenticated');
   }, [dispatch]);
 
   const startSession = useCallback(async ({ token, user: nextUser }: AuthResponse) => {
     await tokenStorage.set(token);
+    setActiveUserForStore(nextUser);
     await syncUserDataFromBackend();
     setUser(nextUser);
     setStatus('authenticated');
@@ -68,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       try {
         const me = await authService.me();
+        setActiveUserForStore(me);
         await syncUserDataFromBackend();
         if (!cancelled) {
           setUser(me);
