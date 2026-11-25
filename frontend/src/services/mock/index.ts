@@ -83,7 +83,15 @@ export const mockApi = {
       throw new ApiError('Tên đăng nhập đã tồn tại.', 409);
     }
     const nextRole = role === 'TEACHER' || role === 'ADMIN' ? role : 'USER';
-    const user: User = { id: nextUserId++, username: username.trim(), fullName, role: nextRole };
+    const user: User = {
+      id: nextUserId++,
+      username: username.trim(),
+      fullName: fullName.trim(),
+      gender: '',
+      birthDate: '',
+      className: '',
+      role: nextRole,
+    };
     mockAccounts.push({ password, user });
     return { token: tokenFor(user), user };
   },
@@ -106,9 +114,9 @@ export const mockApi = {
     account.user = {
       ...account.user,
       fullName: cleanName,
-      gender: gender.trim() || 'Nam',
-      birthDate: birthDate.trim() || '15/05/2015',
-      className: className.trim() || 'Lớp 5A',
+      gender: gender.trim(),
+      birthDate: birthDate.trim(),
+      className: className.trim(),
     };
     studentInfo.name = cleanName;
     return account.user;
