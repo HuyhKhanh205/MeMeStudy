@@ -27,7 +27,7 @@ import {
   getRoundRank,
   getRoundScore,
   getRuntimeAttempts,
-  mockExams,
+  roundExamsOf,
   mockRounds,
   seasons,
   subscribeToStore,
@@ -347,7 +347,7 @@ export default function RoundListScreen({ navigation, route }: Props) {
             attempts
           );
           const isExpanded = !!expandedRoundIds[item.id];
-          const roundExams = mockExams.filter((e) => e.roundId === item.id);
+          const roundExams = roundExamsOf(item.id);
           const isLocked = item.status === 'LOCKED';
 
           return (

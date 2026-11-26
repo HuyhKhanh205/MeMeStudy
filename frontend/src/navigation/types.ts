@@ -25,4 +25,5 @@ export type AdminStackParamList = {
   Dashboard: undefined;
   QuestionList: undefined;
   ExamList: undefined;
+  ExamImport: undefined;
 };

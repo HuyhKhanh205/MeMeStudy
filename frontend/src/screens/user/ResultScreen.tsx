@@ -21,6 +21,7 @@ import {
   WoodLabel,
 } from '../../components/game';
 import { ConfettiOverlay } from '../../components/game/SunnyBackground';
+import AiExplainBox from '../../components/AiExplainBox';
 import Emoji from '../../components/Emoji';
 import { CountUp, Float, PopIn } from '../../components/motion';
 import { formatSeconds } from '../../hooks/useCountdown';
@@ -31,6 +32,7 @@ import {
   getRoundScore,
   getRuntimeAttempts,
   mockExams,
+  roundExamsOf,
   mockRounds,
 } from '../../services/mock/data';
 import { mockApi } from '../../services/mock';
@@ -67,16 +69,21 @@ export default function ResultScreen({ navigation, route }: Props) {
   const examOrder = savedAttempt?.examOrder || (result as any)?.examOrder || currentExam?.order || 1;
   const examTitle = savedAttempt?.examTitle || currentExam?.title || `Bài ${examOrder}`;
   const isPractice = savedAttempt?.mode === 'practice' || (result as any)?.mode === 'practice';
+  // Đề giáo viên tải lên (order = 0): không thuộc chuỗi 3 bài của vòng → không gợi ý "bài tiếp theo"
+  const isTeacherExam =
+    currentExam?.order === 0 || savedAttempt?.examOrder === 0 || (result as any)?.examOrder === 0;
   const score = result.score;
   const total = result.totalQuestions || 10;
   const stars = starCount(score);
   const wrongCount = total - result.correctCount;
+  // Điểm mỗi câu theo thang 100 (đề 10 câu = 10 đ/câu; đề giáo viên tải lên có thể khác 10 câu)
+  const pointsPerQuestion = Math.round(100 / total);
 
   // Tính toán chính xác trạng thái vòng và bài tiếp theo
   const round = mockRounds.find((r) => r.id === result.roundId);
-  const roundExams = mockExams.filter((e) => e.roundId === result.roundId);
+  const roundExams = roundExamsOf(result.roundId);
   const roundAttempts = savedAttempts.filter((a) => a.roundId === result.roundId);
-  const completedOrders = new Set(roundAttempts.map((a) => a.examOrder));
+  const completedOrders = new Set(roundAttempts.map((a) => a.examOrder).filter((o) => o > 0));
   const isArchived =
     savedAttempt?.seasonId === '2025-2026' || round?.seasonId === '2025-2026';
 
@@ -114,7 +121,12 @@ export default function ResultScreen({ navigation, route }: Props) {
   // - Vòng thi chưa hoàn thành (không phải COMPLETED / đủ 3 bài)
   // - Có bài tiếp theo và bài tiếp theo chưa làm
   const canStartNextExam =
-    !isPractice && !fromHistory && !isCompletedRound && !!nextExam && !isNextExamCompleted;
+    !isPractice &&
+    !isTeacherExam &&
+    !fromHistory &&
+    !isCompletedRound &&
+    !!nextExam &&
+    !isNextExamCompleted;
 
   // Lấy đúng 10 câu hỏi của bài thi để hiển thị phần giải thích
   const displayQuestions = mockApi.getQuestionsForExam(examId);
@@ -237,6 +249,16 @@ export default function ResultScreen({ navigation, route }: Props) {
                 </Text>
               </View>
             </View>
+          ) : isTeacherExam ? (
+            <View style={styles.completedRoundBox}>
+              <Ionicons name="document-text" size={24} color="#0284c7" />
+              <View style={styles.roundScoreInfo}>
+                <Text style={styles.completedRoundTitle}>Hoàn thành đề giáo viên giao! 📝</Text>
+                <Text style={styles.roundScoreSummary}>
+                  Điểm của bạn: <Text style={styles.scoreHighlight}>{score}/100 đ</Text> · đã lưu để giáo viên xem.
+                </Text>
+              </View>
+            </View>
           ) : isCompletedRound ? (
             <View style={styles.completedRoundBox}>
               <Ionicons name="trophy" size={24} color="#eab308" />
@@ -355,9 +377,17 @@ export default function ResultScreen({ navigation, route }: Props) {
           {displayQuestions.map((q, idx) => {
             const r = result.review?.find((rev) => rev.questionId === q.id);
             const savedRev = savedAttempt?.review?.find((sr) => sr.questionId === q.id);
-            const isCorrect = r ? r.correct : savedRev ? savedRev.correct : idx < result.correctCount;
             const choiceId = (r as any)?.choiceId ?? savedRev?.choiceId;
             const userChoice = q.choices.find((c) => c.id === choiceId);
+            // Biết học sinh chọn gì → đúng/sai tính theo chính lựa chọn đó, để nhãn không bao giờ
+            // mâu thuẫn với dòng "Bạn đã chọn" / "Đáp án đúng" (kể cả khi cờ `correct` lưu sai).
+            const isCorrect = userChoice
+              ? userChoice.id === q.correctChoiceId
+              : r
+                ? r.correct
+                : savedRev
+                  ? savedRev.correct
+                  : idx < result.correctCount;
 
             return (
               <View
@@ -382,7 +412,7 @@ export default function ResultScreen({ navigation, route }: Props) {
                       { color: isCorrect ? '#16a34a' : '#dc2626' },
                     ]}
                   >
-                    {isCorrect ? 'Chính xác (+10 đ)' : 'Cần ôn lại (0 đ)'}
+                    {isCorrect ? `Chính xác (+${pointsPerQuestion} đ)` : 'Cần ôn lại (0 đ)'}
                   </Text>
                 </View>
 
@@ -400,6 +430,11 @@ export default function ResultScreen({ navigation, route }: Props) {
 
                 <View style={styles.explainDivider} />
                 <Text style={styles.reviewExplanation}>💡 Lời giải: {q.explanation}</Text>
+
+                {/* AI basic: câu sai có nút hỏi Cú AI giải thích riêng cho lựa chọn của học sinh */}
+                {!isCorrect && (
+                  <AiExplainBox questionId={q.id} selectedChoiceId={choiceId ?? null} />
+                )}
               </View>
             );
           })}

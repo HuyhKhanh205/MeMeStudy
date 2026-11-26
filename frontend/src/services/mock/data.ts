@@ -873,8 +873,16 @@ export function getExamStatus(
  * Tính điểm vòng (cộng từ 3 bài thi, tối đa 300 điểm: mỗi bài 100 điểm).
  * Trả về null nếu chưa làm đủ 3 bài.
  */
+/**
+ * 3 bài chính thức của vòng (order 1–3). Đề giáo viên tải lên có order = 0: vẫn nằm trong mockExams
+ * để ExamScreen tìm được, nhưng không tính vào tiến độ / điểm vòng.
+ */
+export function roundExamsOf(roundId: number): Exam[] {
+  return mockExams.filter((e) => e.roundId === roundId && e.order > 0);
+}
+
 export function getRoundScore(roundId: number, userAttempts: ExamAttempt[]): number | null {
-  const roundExams = mockExams.filter((e) => e.roundId === roundId);
+  const roundExams = roundExamsOf(roundId);
   if (roundExams.length !== 3) return null;
 
   const exam1Attempt = userAttempts.find((a) => a.roundId === roundId && a.examOrder === 1);
@@ -934,7 +942,7 @@ export function getRoundProgress(
   roundId: number,
   userAttempts: ExamAttempt[]
 ): { completedCount: number; total: number; score: number | null; isCompleted: boolean } {
-  const roundExams = mockExams.filter((e) => e.roundId === roundId);
+  const roundExams = roundExamsOf(roundId);
   const total = roundExams.length || 3;
 
   const completedCount = roundExams.filter((exam) =>
