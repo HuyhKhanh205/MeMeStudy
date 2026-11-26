@@ -1,0 +1,15 @@
+# Mẫu cấu hình AI cho backend MeMeStudy (file mẫu này ĐƯỢC commit).
+# Cách dùng: sao chép thành "ai.local.properties" (cùng thư mục backend/) rồi dán API key.
+# File "ai.local.properties" đã nằm trong .gitignore → key không bao giờ bị đẩy lên GitHub.
+# Biến môi trường cùng tên (nếu có) được ưu tiên hơn file này.
+
+# Gemini (Google AI Studio → Get API key). Có gói miễn phí.
+GOOGLE_API_KEY=
+
+# Hoặc Claude (console.anthropic.com → API Keys).
+ANTHROPIC_API_KEY=
+
+# Tuỳ chọn:
+# AI_PROVIDER=gemini
+# GEMINI_MODEL=gemini-3.6-flash
+# ANTHROPIC_MODEL=claude-opus-5-5
