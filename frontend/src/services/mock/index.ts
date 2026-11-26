@@ -145,15 +145,13 @@ export const mockApi = {
   /**
    * Bắt đầu một lượt làm bài thi (hỗ trợ truyền examId cụ thể trong vòng)
    * Nếu EXPO_PUBLIC_USE_MOCK=false, gọi trực tiếp Backend MariaDB API.
+   * Lỗi mạng/máy chủ được ném ra cho màn hình xử lý — KHÔNG lặng lẽ chuyển sang chấm cục bộ,
+   * vì như vậy học sinh thấy điểm nhưng bài làm không được lưu vào database.
    */
   async startAttempt(roundId: number, targetExamId?: number): Promise<Attempt> {
     if (!config.useMock) {
-      try {
-        const query = targetExamId != null ? `?examId=${targetExamId}` : '';
-        return await http.post<Attempt>(`/rounds/${roundId}/attempts${query}`);
-      } catch {
-        // Fallback nếu mất kết nối tạm thời
-      }
+      const query = targetExamId != null ? `?examId=${targetExamId}` : '';
+      return http.post<Attempt>(`/rounds/${roundId}/attempts${query}`);
     }
     await delay(200);
     const user = await currentUser();
@@ -215,17 +213,14 @@ export const mockApi = {
     meta?: { durationSeconds?: number; mode?: 'exam' | 'practice' }
   ): Promise<AttemptResult> {
     if (!config.useMock) {
-      try {
-        const serverResult = await http.post<AttemptResult>(`/attempts/${attemptId}/submit`, {
-          ...body,
-          durationSeconds: meta?.durationSeconds,
-          mode: meta?.mode ?? 'exam',
-        });
-        await syncUserDataFromBackend();
-        return serverResult;
-      } catch {
-        // Fallback chấm điểm cục bộ nếu mạng gián đoạn
-      }
+      // Lỗi được ném ra để màn Làm bài báo lỗi và cho nộp lại (giữ nguyên đáp án đã chọn)
+      const serverResult = await http.post<AttemptResult>(`/attempts/${attemptId}/submit`, {
+        ...body,
+        durationSeconds: meta?.durationSeconds,
+        mode: meta?.mode ?? 'exam',
+      });
+      await syncUserDataFromBackend();
+      return serverResult;
     }
     await delay(300);
     const user = await currentUser();
