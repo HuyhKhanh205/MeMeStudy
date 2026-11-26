@@ -35,6 +35,7 @@ import type { UserStackParamList } from '../../navigation/types';
 import { mockApi } from '../../services/mock';
 import {
   getRuntimeAttempts,
+  syncUserDataFromBackend,
   mockExams,
   mockQuestionsData,
   mockRounds,
@@ -42,6 +43,7 @@ import {
   type MockQuestionItem,
 } from '../../services/mock/data';
 import { gameColors, gameFonts, gameGradients, gameShadows, spacing } from '../../theme';
+import { ApiError } from '../../types/api';
 import { confirm, showAlert } from '../../utils/confirm';
 
 type Props = NativeStackScreenProps<UserStackParamList, 'Exam'>;
@@ -80,6 +82,8 @@ export default function ExamScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [startedAt] = useState(Date.now());
   const submittedRef = useRef(false);
+  // Lượt thi đã tạo trên máy chủ: nộp lại sau lỗi mạng sẽ dùng lại, không tạo lượt mới
+  const attemptIdRef = useRef<number | null>(null);
 
   // Audio simulation state cho câu LISTENING
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -166,10 +170,14 @@ export default function ExamScreen({ navigation, route }: Props) {
 
     try {
       const durationSeconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
-      // Gọi submitAttempt của mockApi
-      const attempt = await mockApi.startAttempt(roundId, exam.id);
+      // Tạo lượt thi (chỉ lần đầu) rồi nộp. Ở chế độ backend thật, lỗi mạng sẽ ném ra
+      // và không có điểm "giả" nào được hiện ra khi bài chưa lưu vào database.
+      if (attemptIdRef.current == null) {
+        const attempt = await mockApi.startAttempt(roundId, exam.id);
+        attemptIdRef.current = attempt.id;
+      }
       const result = await mockApi.submitAttempt(
-        attempt.id,
+        attemptIdRef.current,
         {
           answers: questions.map((q) => ({
             questionId: q.id,
@@ -186,9 +194,23 @@ export default function ExamScreen({ navigation, route }: Props) {
 
       navigation.replace('Result', { result, durationSeconds });
     } catch (e: any) {
-      submittedRef.current = false;
       setSubmitting(false);
-      void showAlert('Lỗi nộp bài', e?.message || 'Có lỗi xảy ra khi nộp bài.');
+      if (e instanceof ApiError && e.status === 409) {
+        // Lần nộp trước thực ra đã tới máy chủ (chỉ mất phản hồi) → bài đã được lưu
+        await syncUserDataFromBackend();
+        await showAlert(
+          'Bài đã được nộp',
+          'Máy chủ đã nhận bài làm của bạn. Xem điểm trong mục Lịch sử nhé.'
+        );
+        navigation.goBack();
+        return;
+      }
+      submittedRef.current = false;
+      void showAlert(
+        'Chưa nộp được bài',
+        `${e?.message || 'Có lỗi xảy ra khi nộp bài.'}
+Đáp án của bạn vẫn được giữ nguyên — kiểm tra kết nối mạng rồi bấm "Nộp bài" lần nữa.`
+      );
     }
   }, [answers, exam, mode, navigation, questions, roundId, startedAt]);
 
