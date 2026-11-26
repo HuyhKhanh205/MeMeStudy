@@ -96,7 +96,8 @@ public class AttemptResource {
         }
 
         int totalQuestions = attempt.getQuestions().isEmpty() ? 10 : attempt.getQuestions().size();
-        int score = correctCount * 10; // Thang điểm 100 (mỗi câu đúng = 10 điểm)
+        // Thang điểm 100 theo tỉ lệ câu đúng (đề 10 câu: mỗi câu 10 điểm; đề giáo viên tải lên có thể khác 10 câu)
+        int score = (int) Math.round(correctCount * 100.0 / totalQuestions);
         String submittedAt = Instant.now().toString();
         Integer durationSecs = body != null && body.getDurationSeconds() != null ? body.getDurationSeconds() : 420;
         String mode = body != null && body.getMode() != null ? body.getMode() : "exam";
