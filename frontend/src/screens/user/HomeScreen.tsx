@@ -90,7 +90,10 @@ export default function HomeScreen({ navigation }: Props) {
   });
 
   // Tính tiến độ học tập động theo đúng số bài user hiện tại đã làm trong đợt đang mở (3 vòng x 3 bài = 9 bài)
-  const activeCompletedExams = attempts.filter((a) => a.seasonId === activeSeason.id).length;
+  // examOrder = 0 là đề giáo viên giao, không thuộc 9 bài của đợt thi
+  const activeCompletedExams = attempts.filter(
+    (a) => a.seasonId === activeSeason.id && a.examOrder !== 0
+  ).length;
   const completedLessonsCount = activeCompletedExams;
   const totalLessonsCount = activeRounds.length * 3 || 9;
 

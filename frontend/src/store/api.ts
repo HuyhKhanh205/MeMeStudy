@@ -1,9 +1,24 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
+import { aiService } from '../services/aiService';
 import { attemptService } from '../services/attemptService';
+import { examService } from '../services/examService';
 import { toApiError } from '../services/http';
 import { questionService } from '../services/questionService';
 import { roundService } from '../services/roundService';
-import type { Attempt, AttemptResult, Question, Round, SubmitRequest } from '../types';
+import type {
+  AiExplainRequest,
+  AiExplainResult,
+  Attempt,
+  AttemptResult,
+  CreateExamRequest,
+  CreatedExam,
+  ExamDraft,
+  ExamImportRequest,
+  ExamSummary,
+  Question,
+  Round,
+  SubmitRequest,
+} from '../types';
 
 /** Lỗi lưu trong Redux phải là object thường (serializable), không phải instance ApiError. */
 export interface ApiErrorShape {
@@ -32,7 +47,7 @@ async function run<T>(fn: () => Promise<T>): Promise<{ data: T } | { error: ApiE
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fakeBaseQuery<ApiErrorShape>(),
-  tagTypes: ['Round', 'Result', 'Question'],
+  tagTypes: ['Round', 'Result', 'Question', 'Exam'],
   // Quay lại màn hình sau 30s thì tự tải lại dữ liệu.
   refetchOnMountOrArgChange: 30,
   endpoints: (build) => ({
@@ -64,6 +79,39 @@ export const api = createApi({
       // Nộp bài xong thì màn Lịch sử tự tải lại.
       invalidatesTags: [{ type: 'Result', id: 'LIST' }],
     }),
+
+    /** AI basic: hỏi Cú AI vì sao đáp án đã chọn chưa đúng (POST /ai/explain). */
+    explainAnswer: build.mutation<AiExplainResult, AiExplainRequest>({
+      queryFn: (body) => run(() => aiService.explain(body)),
+    }),
+
+    /** Giáo viên: danh sách bài thi (bài gốc của vòng + đề tải lên). */
+    getExams: build.query<ExamSummary[], void>({
+      queryFn: () => run(examService.list),
+      providesTags: [{ type: 'Exam', id: 'LIST' }],
+    }),
+
+    /** Tải đề lên: Gemini đọc file → bản nháp (chưa lưu). */
+    importExamFile: build.mutation<ExamDraft, ExamImportRequest>({
+      queryFn: (body) => run(() => examService.importFile(body)),
+    }),
+
+    /** Lưu bản nháp thành bài kiểm tra → danh sách đề và câu hỏi tự tải lại. */
+    createExam: build.mutation<CreatedExam, CreateExamRequest>({
+      queryFn: (body) => run(() => examService.create(body)),
+      invalidatesTags: [
+        { type: 'Exam', id: 'LIST' },
+        { type: 'Question', id: 'LIST' },
+      ],
+    }),
+
+    deleteExam: build.mutation<void, number>({
+      queryFn: (examId) => run(() => examService.remove(examId)),
+      invalidatesTags: [
+        { type: 'Exam', id: 'LIST' },
+        { type: 'Question', id: 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -73,6 +121,11 @@ export const {
   useGetQuestionsQuery,
   useStartAttemptMutation,
   useSubmitAttemptMutation,
+  useExplainAnswerMutation,
+  useGetExamsQuery,
+  useImportExamFileMutation,
+  useCreateExamMutation,
+  useDeleteExamMutation,
 } = api;
 
 /** Lấy chuỗi lỗi hiển thị từ `error` của hook RTK Query. */

@@ -240,6 +240,20 @@ public class InMemoryStore {
         USER_RESULTS.put(1, user1Results);
     }
 
+    /**
+     * Đáp án sai đầu tiên của câu hỏi (dùng cho bài làm mẫu).
+     * Trước đây luôn lấy lựa chọn A → nếu A chính là đáp án đúng thì câu "sai" lại chọn đúng,
+     * khiến màn Kết quả hiện "Bạn đã chọn" trùng "Đáp án đúng" nhưng vẫn ghi "Cần ôn lại".
+     */
+    private static Integer firstWrongChoiceId(QuestionDto q) {
+        for (ChoiceDto c : q.getChoices()) {
+            if (q.getCorrectChoiceId() == null || c.getId() != q.getCorrectChoiceId()) {
+                return c.getId();
+            }
+        }
+        return null; // câu chỉ có 1 lựa chọn: coi như bỏ trống
+    }
+
     private static List<AttemptResultDto.QuestionReviewItem> createSeedReview(int examId, int correctCount) {
         List<AttemptResultDto.QuestionReviewItem> items = new ArrayList<>();
         List<QuestionDto> examQs = new ArrayList<>();
@@ -253,7 +267,7 @@ public class InMemoryStore {
             boolean isCorrect = i < correctCount;
             Integer chosen = isCorrect
                     ? q.getCorrectChoiceId()
-                    : q.getChoices().get(0).getId();
+                    : firstWrongChoiceId(q);
             items.add(new AttemptResultDto.QuestionReviewItem(q.getId(), isCorrect, chosen));
         }
         return items;
@@ -725,7 +739,8 @@ public class InMemoryStore {
                 // Kiểm tra nếu đã hoàn thành đủ 3 bài của vòng này -> chuyển vòng sang COMPLETED
                 // và TỰ ĐỘNG MỞ KHÓA vòng tiếp theo liên kết qua prerequisite_round_id
                 try (PreparedStatement checkPs = conn.prepareStatement(
-                        "SELECT COUNT(DISTINCT exam_order) AS done_cnt, COALESCE(SUM(score), 0) AS total_round_score FROM attempts WHERE user_id = ? AND round_id = ? AND mode = 'exam'")) {
+                        // exam_order = 0 là đề giáo viên tải lên → không tính vào 3 bài của vòng
+                        "SELECT COUNT(DISTINCT exam_order) AS done_cnt, COALESCE(SUM(score), 0) AS total_round_score FROM attempts WHERE user_id = ? AND round_id = ? AND mode = 'exam' AND exam_order > 0")) {
                     checkPs.setInt(1, userId);
                     checkPs.setInt(2, result.getRoundId());
                     try (ResultSet crs = checkPs.executeQuery()) {
@@ -757,6 +772,150 @@ public class InMemoryStore {
 
         List<AttemptResultDto> list = USER_RESULTS.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>());
         list.add(0, result);
+    }
+
+    // ------------------------------------------------------------------ Đề giáo viên tải lên
+
+    /**
+     * Lưu đề giáo viên tạo từ file tải lên (sau khi Gemini đọc và giáo viên đã xem lại):
+     * 1 dòng exams (exam_order = 0 → không thuộc chuỗi 3 bài của vòng) + questions + question_choices
+     * + 1 dòng teacher_assignments để đề hiện ở mục "Đề kiểm tra giáo viên giao" trên Home học sinh.
+     * Chạy trong 1 transaction: lỗi giữa chừng thì không lưu gì.
+     *
+     * @return { examId, assignmentId, roundId, title, questionCount, durationMinutes, deadline }
+     */
+    public static Map<String, Object> createTeacherExam(
+            int teacherId, int roundId, String title, int durationMinutes, String deadline,
+            List<com.memestudy.backend.ai.ExamImportService.DraftQuestion> questions
+    ) throws java.sql.SQLException {
+        try (Connection conn = DatabaseManager.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                int examId;
+                // exams.id không tự tăng → lấy id lớn nhất + 1, đề tải lên bắt đầu từ 9001 cho dễ nhận biết
+                try (Statement st = conn.createStatement();
+                     ResultSet rs = st.executeQuery("SELECT GREATEST(COALESCE(MAX(id), 0) + 1, 9001) FROM exams")) {
+                    rs.next();
+                    examId = rs.getInt(1);
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO exams (id, round_id, prerequisite_exam_id, exam_order, title, question_count, duration_minutes) VALUES (?, ?, NULL, 0, ?, ?, ?)")) {
+                    ps.setInt(1, examId);
+                    ps.setInt(2, roundId);
+                    ps.setString(3, title);
+                    ps.setInt(4, questions.size());
+                    ps.setInt(5, durationMinutes);
+                    ps.executeUpdate();
+                }
+
+                try (PreparedStatement qps = conn.prepareStatement(
+                             "INSERT INTO questions (exam_id, question_type, content, correct_index, correct_choice_id, explanation) VALUES (?, 'TEXT', ?, ?, 0, ?)",
+                             Statement.RETURN_GENERATED_KEYS);
+                     PreparedStatement cps = conn.prepareStatement(
+                             "INSERT INTO question_choices (id, question_id, choice_index, content) VALUES (?, ?, ?, ?)");
+                     PreparedStatement ups = conn.prepareStatement(
+                             "UPDATE questions SET correct_choice_id = ? WHERE id = ?")) {
+                    for (com.memestudy.backend.ai.ExamImportService.DraftQuestion q : questions) {
+                        qps.setInt(1, examId);
+                        qps.setString(2, q.getContent());
+                        qps.setInt(3, q.getCorrectIndex());
+                        String explanation = q.getExplanation();
+                        if (explanation == null || explanation.isBlank()) qps.setNull(4, java.sql.Types.VARCHAR);
+                        else qps.setString(4, explanation);
+                        qps.executeUpdate();
+                        int questionId;
+                        try (ResultSet keys = qps.getGeneratedKeys()) {
+                            keys.next();
+                            questionId = keys.getInt(1);
+                        }
+                        // Cùng quy ước id lựa chọn với dữ liệu mẫu: questionId * 10 + (1..4)
+                        for (int i = 0; i < q.getChoices().size(); i++) {
+                            cps.setInt(1, questionId * 10 + i + 1);
+                            cps.setInt(2, questionId);
+                            cps.setInt(3, i);
+                            cps.setString(4, q.getChoices().get(i));
+                            cps.addBatch();
+                        }
+                        cps.executeBatch();
+                        ups.setInt(1, questionId * 10 + q.getCorrectIndex() + 1);
+                        ups.setInt(2, questionId);
+                        ups.executeUpdate();
+                    }
+                }
+
+                int assignmentId = 0;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO teacher_assignments (teacher_id, title, question_count, duration_minutes, deadline, is_completed, score, exam_id, round_id) VALUES (?, ?, ?, ?, ?, FALSE, NULL, ?, ?)",
+                        Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setInt(1, teacherId);
+                    ps.setString(2, title);
+                    ps.setInt(3, questions.size());
+                    ps.setInt(4, durationMinutes);
+                    ps.setString(5, deadline);
+                    ps.setInt(6, examId);
+                    ps.setInt(7, roundId);
+                    ps.executeUpdate();
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) assignmentId = keys.getInt(1);
+                    }
+                }
+
+                conn.commit();
+                Map<String, Object> created = new LinkedHashMap<>();
+                created.put("examId", examId);
+                created.put("assignmentId", assignmentId);
+                created.put("roundId", roundId);
+                created.put("title", title);
+                created.put("questionCount", questions.size());
+                created.put("durationMinutes", durationMinutes);
+                created.put("deadline", deadline);
+                return created;
+            } catch (java.sql.SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            }
+        }
+    }
+
+    /** Danh sách bài thi (kèm tên vòng, số câu thật, nguồn ROUND | TEACHER) cho màn quản lý đề. */
+    public static List<Map<String, Object>> listExams() throws java.sql.SQLException {
+        List<Map<String, Object>> list = new ArrayList<>();
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT e.id, e.round_id, r.title AS round_title, e.exam_order, e.title, e.duration_minutes,"
+                             + " (SELECT COUNT(*) FROM questions q WHERE q.exam_id = e.id) AS real_count,"
+                             + " (SELECT ta.deadline FROM teacher_assignments ta WHERE ta.exam_id = e.id ORDER BY ta.id DESC LIMIT 1) AS deadline"
+                             + " FROM exams e JOIN rounds r ON r.id = e.round_id ORDER BY (e.exam_order = 0) DESC, e.id DESC");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> ex = new LinkedHashMap<>();
+                ex.put("id", rs.getInt("id"));
+                ex.put("roundId", rs.getInt("round_id"));
+                ex.put("roundTitle", rs.getString("round_title"));
+                ex.put("order", rs.getInt("exam_order"));
+                ex.put("title", rs.getString("title"));
+                ex.put("questionCount", rs.getInt("real_count"));
+                ex.put("durationMinutes", rs.getInt("duration_minutes"));
+                ex.put("deadline", rs.getString("deadline"));
+                ex.put("source", rs.getInt("exam_order") == 0 ? "TEACHER" : "ROUND");
+                list.add(ex);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Xoá đề giáo viên tải lên (chỉ đề có exam_order = 0). Khoá ngoại ON DELETE CASCADE tự xoá
+     * câu hỏi, lựa chọn, đề giao và các lượt làm bài của đề này.
+     *
+     * @return true nếu đã xoá; false nếu không tìm thấy hoặc là bài thi gốc của vòng
+     */
+    public static boolean deleteTeacherExam(int examId) throws java.sql.SQLException {
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM exams WHERE id = ? AND exam_order = 0")) {
+            ps.setInt(1, examId);
+            return ps.executeUpdate() > 0;
+        }
     }
 
     /**
@@ -856,6 +1015,7 @@ public class InMemoryStore {
         for (RoundDto r : baseRounds) {
             long doneExams = userAttempts.stream()
                     .filter(a -> a.getRoundId() == r.getId())
+                    .filter(a -> a.getExamOrder() == null || a.getExamOrder() > 0) // bỏ đề giáo viên tải lên
                     .map(a -> a.getExamId() != null ? a.getExamId() : a.getExamOrder())
                     .distinct()
                     .count();

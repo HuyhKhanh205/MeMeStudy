@@ -111,6 +111,9 @@ export default function DashboardScreen({ navigation }: Props) {
         <Button title="Quản lý đề thi" onPress={() => navigation.navigate('ExamList')} />
       </Animated.View>
       <Animated.View entering={listEntering(3)}>
+        <Button title="Tải đề lên (Gemini AI)" onPress={() => navigation.navigate('ExamImport')} />
+      </Animated.View>
+      <Animated.View entering={listEntering(4)}>
         <Button title="Đăng xuất" variant="secondary" onPress={logout} />
       </Animated.View>
     </Screen>

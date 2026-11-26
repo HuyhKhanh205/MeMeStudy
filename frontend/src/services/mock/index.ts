@@ -1,5 +1,7 @@
 import { ApiError } from '../../types/api';
 import type {
+  AiExplainRequest,
+  AiExplainResult,
   Attempt,
   AttemptResult,
   AuthResponse,
@@ -188,7 +190,7 @@ export const mockApi = {
       roundId: round.id,
       roundTitle: round.title,
       examId: chosenExam?.id || roundId * 100 + 1,
-      examOrder: chosenExam?.order || 1,
+      examOrder: chosenExam?.order ?? 1, // 0 = đề giáo viên tải lên
       seasonId: round.seasonId,
       status: 'IN_PROGRESS' as const,
       startedAt: new Date(now).toISOString(),
@@ -257,8 +259,8 @@ export const mockApi = {
 
     const correctCount = review.filter((r) => r.correct).length;
     const total = attempt.questions.length || 10;
-    // Thang điểm 100 (mỗi câu đúng = 10 điểm)
-    const score = correctCount * 10;
+    // Thang điểm 100 theo tỉ lệ câu đúng (đề 10 câu: mỗi câu 10 điểm)
+    const score = Math.round((correctCount * 100) / total);
     const nowIso = new Date().toISOString();
 
     const round = mockRounds.find((r) => r.id === attempt.roundId);
@@ -324,6 +326,26 @@ export const mockApi = {
   async listQuestions(): Promise<Question[]> {
     await delay(100);
     return mockQuestions;
+  },
+
+  /**
+   * AI basic ở chế độ mock: không gọi AI thật, ghép câu trả lời mẫu từ lời giải có sẵn
+   * để demo giao diện khi chưa chạy backend.
+   */
+  async aiExplain({ questionId, selectedChoiceId }: AiExplainRequest): Promise<AiExplainResult> {
+    await delay(900);
+    const q = mockQuestionsData.find((item) => item.id === questionId);
+    if (!q) throw new ApiError('Không tìm thấy câu hỏi.', 404);
+    const picked = q.choices.find((c) => c.id === selectedChoiceId)?.content;
+    const correct = q.choices.find((c) => c.id === q.correctChoiceId)?.content ?? q.options[q.correctIndex];
+    const opening = picked
+      ? `Bạn chọn "${picked}" nhưng đáp án đúng là "${correct}".`
+      : `Bạn chưa chọn đáp án; đáp án đúng là "${correct}".`;
+    return {
+      explanation: `${opening} ${q.explanation} Mẹo: đọc kỹ từ khoá trong câu trước khi chọn nhé!`,
+      source: 'mock',
+      notice: 'Chế độ mock: câu trả lời mẫu, chưa gọi AI thật.',
+    };
   },
 
   /** Lấy danh sách câu hỏi chi tiết theo bài thi */
