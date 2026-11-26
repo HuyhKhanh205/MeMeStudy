@@ -52,6 +52,25 @@ public class DatabaseManager {
         } catch (Exception ignored) {
         }
 
+        // Cấu hình riêng từng máy (mật khẩu MariaDB) — file db.local.properties nằm trong .gitignore,
+        // đè lên db.properties (file này được commit nên KHÔNG ghi mật khẩu thật vào đó).
+        String dir = System.getProperty("user.dir");
+        for (File local : new File[] { new File(dir, "db.local.properties"), new File(dir, "backend/db.local.properties") }) {
+            if (local.isFile()) {
+                Properties localProps = new Properties();
+                try (InputStreamReader r = new InputStreamReader(new FileInputStream(local), StandardCharsets.UTF_8)) {
+                    localProps.load(r);
+                    dbUrl = localProps.getProperty("db.url", dbUrl).trim();
+                    dbUser = localProps.getProperty("db.user", dbUser).trim();
+                    dbPassword = localProps.getProperty("db.password", dbPassword).trim();
+                    System.out.println("[MariaDB] Loaded local DB config from " + local.getAbsolutePath());
+                } catch (Exception e) {
+                    System.err.println("[MariaDB] Cannot read " + local + ": " + e.getMessage());
+                }
+                break;
+            }
+        }
+
         String envUrl = System.getenv("DB_URL");
         String envUser = System.getenv("DB_USER");
         String envPass = System.getenv("DB_PASSWORD");

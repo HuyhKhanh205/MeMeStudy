@@ -1,0 +1,11 @@
+# Mẫu cấu hình MariaDB riêng cho từng máy (file mẫu này ĐƯỢC commit).
+# Cách dùng: sao chép thành "db.local.properties" (cùng thư mục backend/) rồi điền mật khẩu
+# tài khoản root MariaDB TRÊN MÁY CỦA BẠN (mật khẩu đặt lúc cài MariaDB).
+# File "db.local.properties" nằm trong .gitignore → mật khẩu không bị đẩy lên GitHub.
+# Giá trị ở đây đè lên src/main/resources/db.properties; biến môi trường DB_URL/DB_USER/DB_PASSWORD đè lên tất cả.
+
+db.user=root
+db.password=
+
+# Tuỳ chọn (mặc định lấy từ db.properties):
+# db.url=jdbc:mariadb://localhost:3306/memestudy?useUnicode=true&characterEncoding=UTF-8&createDatabaseIfNotExist=true

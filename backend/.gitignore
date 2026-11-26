@@ -5,3 +5,9 @@ dist/
 backend/target/
 target/
 out/
+
+# Cấu hình AI chứa API key — KHÔNG commit (xem ai.local.properties.example)
+ai.local.properties
+
+# Mật khẩu MariaDB của từng máy — KHÔNG commit (xem db.local.properties.example)
+db.local.properties

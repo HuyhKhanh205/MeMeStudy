@@ -23,7 +23,11 @@ mysql -u root -p < database/memestudy_mariadb.sql
 Backend Java tự động kết nối tới MariaDB theo thông số mặc định trong `backend/src/main/resources/db.properties` (hoặc biến môi trường):
 - **URL**: `jdbc:mariadb://localhost:3306/memestudy?useUnicode=true&characterEncoding=UTF-8&createDatabaseIfNotExist=true`
 - **User mặc định**: `root`
-- **Password mặc định**: *(để trống `""`, hoặc chỉnh trong `backend/src/main/resources/db.properties` / biến môi trường `DB_PASSWORD` nếu MariaDB của bạn có đặt mật khẩu cho `root`)*.
+- **Password mặc định**: *(để trống `""`)*.
+
+> **MariaDB của bạn có mật khẩu cho `root`?** (thường gặp: cài MariaDB trên Windows bắt đặt mật khẩu root) → **không** sửa `db.properties` (file này được commit lên GitHub). Hãy mở `backend/db.local.properties` (nếu chưa có thì sao chép từ `backend/db.local.properties.example`), điền `db.password=<mật khẩu root của máy bạn>`, lưu file và chạy lại backend. File này nằm trong `.gitignore`; log backend có dòng `[MariaDB] Loaded local DB config from ...`. Thứ tự ưu tiên: biến môi trường `DB_URL` / `DB_USER` / `DB_PASSWORD` → `db.local.properties` → `db.properties`.
+>
+> Dấu hiệu sai mật khẩu: log backend `[MariaDB] Chưa kết nối được MariaDB (...)` rồi backend tự chuyển sang lưu dữ liệu trong bộ nhớ (mất khi tắt backend).
 
 > **Tự động khởi tạo**: Ngay cả khi bạn chỉ tạo database rỗng hoặc chưa kịp chạy script tay, khi Backend khởi động và kết nối được vào MariaDB (`localhost:3306`), `DatabaseManager` sẽ tự động kiểm tra và khởi tạo bảng + nạp dữ liệu từ `memestudy_mariadb.sql` nếu bảng `users` chưa tồn tại.
 
