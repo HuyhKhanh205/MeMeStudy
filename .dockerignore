@@ -1,0 +1,16 @@
+# Chỉ gửi cho Docker những gì Dockerfile cần (backend/pom.xml, backend/src, database/*.sql)
+.git
+.claude
+docs
+frontend
+**/node_modules
+
+backend/target
+backend/.idea
+backend/tomcat.*
+backend/*.iml
+
+# Bí mật — không bao giờ đưa vào image
+**/*.local.properties
+**/.env
+**/.env.*

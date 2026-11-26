@@ -1,0 +1,25 @@
+{
+  "cli": {
+    "version": ">= 27.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://doi-thanh-url-backend.invalid/api",
+        "EXPO_PUBLIC_USE_MOCK": "false"
+      }
+    },
+    "demo-mock": {
+      "extends": "preview",
+      "env": {
+        "EXPO_PUBLIC_USE_MOCK": "true"
+      }
+    }
+  }
+}
