@@ -1,5 +1,6 @@
 package com.memestudy.backend.db;
 
+import com.memestudy.backend.config.AppConfig;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,6 +13,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import org.mindrot.jbcrypt.BCrypt;
 
@@ -28,6 +31,8 @@ public class DatabaseManager {
     private static String dbPassword = "123456";
     private static volatile boolean initialized = false;
     private static volatile boolean mariaDbAvailable = false;
+    private static volatile long lastAttemptMs = 0;
+    private static final long RETRY_INTERVAL_MS = 10_000;
 
     static {
         loadConfig();
@@ -80,11 +85,20 @@ public class DatabaseManager {
     }
 
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(dbUrl, dbUser, dbPassword);
+        try {
+            return DriverManager.getConnection(dbUrl, dbUser, dbPassword);
+        } catch (SQLException e) {
+            // Mất kết nối giữa chừng → đánh dấu chưa sẵn sàng để lần sau thử kết nối lại.
+            // Ở chế độ production, DatabaseRequiredFilter sẽ trả 503 thay vì để dữ liệu rơi vào RAM.
+            mariaDbAvailable = false;
+            throw e;
+        }
     }
 
+    /** Chưa kết nối được thì thử lại, nhưng tối đa mỗi {@link #RETRY_INTERVAL_MS} một lần. */
     public static boolean isMariaDbAvailable() {
-        if (!initialized) {
+        if (!initialized
+                || (!mariaDbAvailable && System.currentTimeMillis() - lastAttemptMs >= RETRY_INTERVAL_MS)) {
             initDatabase();
         }
         return mariaDbAvailable;
@@ -93,18 +107,20 @@ public class DatabaseManager {
     public static synchronized void initDatabase() {
         if (initialized && mariaDbAvailable) return;
         initialized = true;
+        lastAttemptMs = System.currentTimeMillis();
 
         try (Connection conn = getConnection()) {
             mariaDbAvailable = true;
             boolean hasUsersTable = false;
-            try (ResultSet rs = conn.getMetaData().getTables("memestudy", null, "users", null)) {
+            // Dùng đúng database trong DB_URL (trên cloud thường không tên là "memestudy")
+            try (ResultSet rs = conn.getMetaData().getTables(conn.getCatalog(), null, "users", null)) {
                 if (rs.next()) {
                     hasUsersTable = true;
                 }
             }
 
             if (!hasUsersTable) {
-                System.out.println("[MariaDB] Chưa có bảng trong database 'memestudy', đang tự động nạp database/memestudy_mariadb.sql...");
+                System.out.println("[MariaDB] Database '" + conn.getCatalog() + "' chưa có bảng, đang tự động nạp memestudy_mariadb.sql...");
                 runSqlSeedScript(conn);
             }
 
@@ -119,20 +135,25 @@ public class DatabaseManager {
     }
 
     private static void runSqlSeedScript(Connection conn) {
-        File[] candidates = new File[]{
-                new File("../database/memestudy_mariadb.sql"),
-                new File("database/memestudy_mariadb.sql"),
-                new File("E:/HK7/ReactNative/groupProject/MeMeStudy/database/memestudy_mariadb.sql")
-        };
+        // DB_INIT_SCRIPT: đường dẫn script khi deploy (vd. /app/database/memestudy_mariadb.sql);
+        // chạy ở máy thì tự tìm theo thư mục chạy (backend/ hoặc gốc repo).
+        List<File> candidates = new ArrayList<>();
+        String configured = AppConfig.env("DB_INIT_SCRIPT");
+        if (configured != null) {
+            candidates.add(new File(configured));
+        }
+        candidates.add(new File("../database/memestudy_mariadb.sql"));
+        candidates.add(new File("database/memestudy_mariadb.sql"));
         File sqlFile = null;
         for (File f : candidates) {
-            if (f.exists() && f.isFile()) {
+            if (f.isFile()) {
                 sqlFile = f;
                 break;
             }
         }
         if (sqlFile == null) {
-            System.err.println("[MariaDB] Không tìm thấy file database/memestudy_mariadb.sql để tự nạp.");
+            System.err.println("[MariaDB] Không tìm thấy memestudy_mariadb.sql để tự nạp (đã thử: " + candidates
+                    + "). Đặt biến DB_INIT_SCRIPT trỏ tới file này.");
             return;
         }
 
@@ -152,6 +173,12 @@ public class DatabaseManager {
                     String sql = sb.toString().trim();
                     sql = sql.substring(0, sql.length() - 1).trim();
                     sb.setLength(0);
+                    // Bỏ qua CREATE DATABASE / USE trong script: luôn nạp vào đúng database ghi trong DB_URL
+                    // (trên cloud database thường có tên khác và tài khoản không có quyền tạo database).
+                    String head = sql.toUpperCase(java.util.Locale.ROOT);
+                    if (head.startsWith("CREATE DATABASE") || head.startsWith("USE ")) {
+                        continue;
+                    }
                     if (!sql.isEmpty()) {
                         stmt.execute(sql);
                     }

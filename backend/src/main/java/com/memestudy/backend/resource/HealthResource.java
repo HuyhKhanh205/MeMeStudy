@@ -1,5 +1,7 @@
 package com.memestudy.backend.resource;
 
+import com.memestudy.backend.config.AppConfig;
+import com.memestudy.backend.db.DatabaseManager;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -38,10 +40,15 @@ public class HealthResource {
     @Path("/health")
     @Produces(MediaType.APPLICATION_JSON)
     public Response checkHealth() {
+        boolean dbUp = DatabaseManager.isMariaDbAvailable();
+        boolean production = AppConfig.isProduction();
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("status", "ok");
+        // Production mà mất DB → "degraded" + 503 để dịch vụ cloud biết server đang hỏng
+        result.put("status", dbUp || !production ? "ok" : "degraded");
         result.put("message", "MeMeStudy Backend is running!");
+        result.put("database", dbUp ? "connected" : (production ? "unavailable" : "in-memory"));
         result.put("timestamp", System.currentTimeMillis());
-        return Response.ok(result).build();
+        Response.Status status = dbUp || !production ? Response.Status.OK : Response.Status.SERVICE_UNAVAILABLE;
+        return Response.status(status).entity(result).build();
     }
 }

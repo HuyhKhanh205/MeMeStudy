@@ -1,6 +1,9 @@
 package com.memestudy.backend;
 
+import com.memestudy.backend.config.AppConfig;
 import com.memestudy.backend.config.RestApplication;
+import com.memestudy.backend.db.DatabaseManager;
+import com.memestudy.backend.security.JwtUtil;
 import java.io.File;
 import org.apache.catalina.Context;
 import org.apache.catalina.Wrapper;
@@ -16,6 +19,18 @@ public class TomcatServer {
 
     public static void main(String[] args) throws Exception {
         int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
+
+        // Kiểm tra cấu hình trước khi mở cổng: lỗi thì dừng ngay, log ghi rõ thiếu gì
+        JwtUtil.checkConfig();
+        boolean dbUp = DatabaseManager.isMariaDbAvailable();
+        if (AppConfig.isProduction() && !dbUp) {
+            System.err.println("[MariaDB] APP_ENV=production nhưng không kết nối được database "
+                    + "→ dừng backend. Kiểm tra DB_URL / DB_USER / DB_PASSWORD.");
+            System.exit(1);
+        }
+        if (!dbUp) {
+            System.err.println("[MariaDB] Đang chạy KHÔNG có database: dữ liệu chỉ lưu trong bộ nhớ, mất khi tắt backend.");
+        }
 
         Tomcat tomcat = new Tomcat();
         tomcat.setPort(port);
