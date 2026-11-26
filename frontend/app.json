@@ -8,9 +8,11 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "requireFullScreen": false
+      "requireFullScreen": false,
+      "bundleIdentifier": "com.memestudy.app"
     },
     "android": {
+      "package": "com.memestudy.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -24,7 +26,8 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-image"
+      "expo-image",
+      "expo-font"
     ]
   }
 }
